@@ -10,9 +10,12 @@ import argparse
 import sys
 from pathlib import Path
 
+import json
+
 from openswift.parse import ParseError, parse_swiftui
 from openswift.render import render_svg
 from openswift.session import PROVIDERS, focus, render_session, status_text
+from openswift.studio import serve, sketch
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -32,6 +35,13 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("render", help="draw the locked view and keep the iteration")
     sub.add_parser("status", help="print the current lock")
 
+    studio = sub.add_parser("studio", help="open the local editor and phone sketch")
+    studio.add_argument("project", nargs="?", type=Path, default=Path("."))
+    studio.add_argument("--port", type=int, default=8765)
+
+    sketch_cmd = sub.add_parser("sketch", help="print the sketch as JSON")
+    sketch_cmd.add_argument("source", type=Path, help="A .swift file, or - for stdin")
+
     args = parser.parse_args(argv)
     try:
         if args.cmd == "draw":
@@ -42,6 +52,13 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.cmd == "render":
             print(render_session())
+            return 0
+        if args.cmd == "studio":
+            serve(args.project.resolve(), port=args.port)
+            return 0
+        if args.cmd == "sketch":
+            text = sys.stdin.read() if str(args.source) == "-" else args.source.read_text(encoding="utf-8")
+            print(json.dumps(sketch(text)))
             return 0
         print(status_text())
         return 0

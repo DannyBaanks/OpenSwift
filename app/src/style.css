@@ -1,0 +1,37 @@
+:root {
+  --bg: #f4f1ea;
+  --line: #e4ddd0;
+  --ink: #1c1915;
+  --muted: #8a8175;
+  --orange: #e36a1e;
+}
+* { box-sizing: border-box; }
+html, body, #app { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 13px/1.4 ui-sans-serif, system-ui, sans-serif; }
+#app { display: grid; grid-template-rows: 48px 1fr 28px; }
+header, footer { display: flex; align-items: center; gap: 8px; padding: 0 12px; border-color: var(--line); }
+header { border-bottom: 1px solid var(--line); }
+footer { border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; justify-content: space-between; }
+button { border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 6px 10px; font: inherit; cursor: pointer; }
+button.primary { background: #111; color: #fff; border-color: #111; }
+button:disabled { opacity: 0.45; }
+#search { margin-left: auto; width: min(420px, 40vw); border: 1px solid var(--line); border-radius: 999px; padding: 7px 12px; }
+main { display: grid; grid-template-columns: 220px 1fr 320px; min-height: 0; }
+aside { min-height: 0; overflow: auto; }
+#files { background: #faf7f2; border-right: 1px solid var(--line); padding: 8px; }
+#files h2, #stage h2 { font-size: 11px; letter-spacing: 0.08em; color: var(--muted); margin: 8px 4px; }
+.file { display: block; width: 100%; text-align: left; border: 0; background: transparent; border-radius: 6px; }
+.file.on { background: #fff; }
+#center { display: grid; grid-template-rows: 36px 1fr 190px; min-width: 0; min-height: 0; }
+#tab { display: flex; align-items: center; padding: 0 10px; background: #fffdf8; border-bottom: 1px solid var(--line); }
+#code { width: 100%; height: 100%; border: 0; resize: none; padding: 12px 14px; font: 13px/1.5 ui-monospace, monospace; }
+#dock { border-top: 1px solid var(--line); display: grid; grid-template-rows: 32px 1fr; min-height: 0; background: #fbf8f3; }
+#dock .tabs { display: flex; gap: 4px; align-items: end; padding: 0 8px; }
+#dock .tabs button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; }
+#dock .tabs button.on { border-bottom-color: var(--orange); }
+#dockpre { margin: 0; padding: 8px 12px; overflow: auto; font: 12px/1.45 ui-monospace, monospace; white-space: pre-wrap; }
+#stage { border-left: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px; }
+#phone { width: 230px; height: 470px; border: 8px solid #111; border-radius: 32px; overflow: hidden; background: #000; box-shadow: 0 16px 40px rgba(0,0,0,.12); }
+#screen { height: 100%; overflow: auto; }
+#screen svg { width: 100%; height: auto; display: block; }
+#empty { color: #8a8175; padding: 16px; }

@@ -55,6 +55,18 @@ La primera vez imprime `.../iterations/001.png`. La segunda, `002.png`. El mismo
 | `001.png`, `002.png` | Cada intento, para poder decir "esa, pero con el botón de la otra" |
 | `provider: approximate-web` | El bosquejo local. `miniswift` y `xcode-preview` están nombrados y todavía no dibujan |
 
+## La ventana
+
+Es una app de Tauri, como iloader. No compila Swift: Run pide el bosquejo al mismo lector de siempre.
+
+```bash
+"/home/danny/Development/ISyCo Git/OpenSwift/app/src-tauri/target/release/openswift"
+```
+
+Ese binario se compiló el 22 de septiembre de 2026. El paquete está en `app/src-tauri/target/release/bundle/deb/OpenSwift_0.1.0_amd64.deb`.
+
+Open abre una carpeta. Eliges un `.swift`. Run dibuja el teléfono. Abajo: Debugger (el árbol del bosquejo, no un depurador de Swift), Output, Problems y Console. Ctrl+Enter vuelve a dibujar. Ctrl+S guarda el archivo.
+
 ## Trampas
 
 - Sin `focus` previo, `render` dice `no .ui-session here`.

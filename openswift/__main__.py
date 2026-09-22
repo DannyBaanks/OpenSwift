@@ -1,4 +1,8 @@
-"""Draw a SwiftUI sketch to an SVG. Nothing is compiled."""
+"""OpenSwift: one screen, one picture, one session.
+
+Nothing here compiles Swift. `draw` writes an SVG. `focus` / `render` /
+`status` keep a .ui-session folder so people and agents look at the same view.
+"""
 
 from __future__ import annotations
 
@@ -8,26 +12,49 @@ from pathlib import Path
 
 from openswift.parse import ParseError, parse_swiftui
 from openswift.render import render_svg
+from openswift.session import PROVIDERS, focus, render_session, status_text
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        prog="openswift",
-        description="Draw a picture of a small SwiftUI sketch. Does not compile Swift.",
-    )
-    parser.add_argument("source", type=Path, help="A .swift file with one view body")
-    parser.add_argument("-o", "--output", type=Path, required=True, help="Where to write the SVG")
+    parser = argparse.ArgumentParser(prog="openswift")
+    sub = parser.add_subparsers(dest="cmd", required=True)
+
+    draw = sub.add_parser("draw", help="write one SVG from a SwiftUI sketch")
+    draw.add_argument("source", type=Path)
+    draw.add_argument("-o", "--output", type=Path, required=True)
+
+    lock = sub.add_parser("focus", help="lock the table to one view")
+    lock.add_argument("target", type=Path)
+    lock.add_argument("--allow", action="append", default=[], help="dependency the agent may edit")
+    lock.add_argument("--intent", required=True)
+    lock.add_argument("--provider", default="approximate-web", choices=PROVIDERS)
+
+    sub.add_parser("render", help="draw the locked view and keep the iteration")
+    sub.add_parser("status", help="print the current lock")
+
     args = parser.parse_args(argv)
-    source = args.source.read_text(encoding="utf-8")
     try:
-        root = parse_swiftui(source)
-    except ParseError as exc:
+        if args.cmd == "draw":
+            return _draw(args.source, args.output)
+        if args.cmd == "focus":
+            root = focus(args.target, args.allow, args.intent, args.provider)
+            print(root)
+            return 0
+        if args.cmd == "render":
+            print(render_session())
+            return 0
+        print(status_text())
+        return 0
+    except (ParseError, ValueError, FileNotFoundError, OSError) as exc:
         print(f"openswift: {exc}", file=sys.stderr)
         return 1
-    svg = render_svg(root)
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(svg, encoding="utf-8")
-    print(args.output)
+
+
+def _draw(source: Path, output: Path) -> int:
+    root = parse_swiftui(source.read_text(encoding="utf-8"))
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(render_svg(root), encoding="utf-8")
+    print(output)
     return 0
 
 

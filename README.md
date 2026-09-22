@@ -1,25 +1,46 @@
 # OpenSwift
 
-OpenSwift draws a picture of a small SwiftUI sketch. It does not compile Swift, it does not run a preview, and it is not [MiniSwift](https://miniswift.run/).
+A shared table for one screen.
 
-MiniSwift is an in-browser Swift compiler: lexer, parser, type checker, WebAssembly, and a real SwiftUI canvas. OpenSwift is the thing you can run on this machine when you only need to *see the shape* of a screen before anyone has Xcode. An agent can point it at a `.swift` file and open the SVG.
+You name a view. OpenSwift locks the session to that file, lists the few files an agent may edit, and draws a picture of the sketch. The next remark ("less cramped", "that button is huge") is about that picture, not about the rest of the repo.
 
-## What it draws
+This is not [MiniSwift](https://miniswift.run/). MiniSwift compiles Swift in the browser. OpenSwift does not compile anything. The picture is an approximation of stacks, text, and buttons. The session around the picture is the product. A later provider can swap in MiniSwift or an Xcode preview without changing the folder.
 
-`VStack`, `HStack`, `ZStack`, `Text`, `Button`, `Spacer`, `Divider`, `TextField`, `SecureField`, plus `font`, `foregroundColor`, `background`, `padding`, `frame`, and `cornerRadius`.
+## Providers
 
-Anything else is drawn as a labeled box with its type name, so a missing view is visible instead of silently dropped.
+| name | what it does today |
+|---|---|
+| `approximate-web` | the only one that draws. SVG plus PNG, no compiler |
+| `miniswift` | named, not wired |
+| `xcode-preview` | named, not wired |
 
-## Run
+## The folder
 
-From this directory:
-
-```bash
-python3 -m openswift examples/hello.swift -o /tmp/hello.svg
+```text
+.ui-session/
+├── target.json
+├── intent.md
+├── source.swift
+├── preview.svg
+├── preview.png
+├── preview.sha256
+└── iterations/
+    ├── 001.png
+    └── 002.png
 ```
 
-The command prints the SVG path. Open that file. The picture is a phone frame with the sketch inside, and a footer that says it was not compiled.
+`target.json` says which file is in play, which dependencies may be edited, and that everything else is read only.
+
+## Commands
 
 ```bash
-python3 -m unittest tests/test_preview.py
+python3 -m openswift focus SettingsView.swift \
+  --allow Theme.swift --allow ModelPicker.swift \
+  --intent "hacer el panel menos apretado"
+
+python3 -m openswift render
+python3 -m openswift status
+python3 -m openswift draw examples/hello.swift -o /tmp/hello.svg
 ```
+
+`render` reads the locked file again, writes `preview.png`, and copies it to the next `iterations/NNN.png`.

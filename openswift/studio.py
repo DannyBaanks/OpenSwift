@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -32,6 +33,19 @@ def _problems(node: ViewNode, found: list[str]) -> None:
         _problems(child, found)
 
 
+def highlight(source: str) -> list:
+    exe = Path(__file__).resolve().parents[1] / "bin" / "openswift-lex"
+    if not exe.is_file():
+        return []
+    proc = subprocess.run([str(exe)], input=source.encode(), capture_output=True)
+    if proc.returncode != 0 or not proc.stdout:
+        return []
+    try:
+        return json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        return []
+
+
 def sketch(source: str) -> dict:
     try:
         root = parse_swiftui(source)
@@ -39,7 +53,14 @@ def sketch(source: str) -> dict:
         return {"ok": False, "error": str(exc), "svg": "", "problems": [str(exc)], "tree": None}
     problems: list[str] = []
     _problems(root, problems)
-    return {"ok": True, "error": "", "svg": render_svg(root), "problems": problems, "tree": _tree(root)}
+    return {
+        "ok": True,
+        "error": "",
+        "svg": render_svg(root),
+        "problems": problems,
+        "tree": _tree(root),
+        "tokens": highlight(source),
+    }
 
 
 def _safe(root: Path, raw: str) -> Path:

@@ -83,14 +83,10 @@ fn write_source(state: State<Project>, path: String, text: String) -> Result<(),
     fs::write(file, text).map_err(|e| e.to_string())
 }
 
-#[tauri::command]
-fn render_source(source: String) -> Result<serde_json::Value, String> {
+fn python_json(args: &[&str], source: &str) -> Result<serde_json::Value, String> {
     let root = repo_root();
     let mut child = Command::new("python3")
-        .arg("-m")
-        .arg("openswift")
-        .arg("sketch")
-        .arg("-")
+        .args(args)
         .current_dir(&root)
         .env("PYTHONPATH", &root)
         .stdin(Stdio::piped())
@@ -109,6 +105,32 @@ fn render_source(source: String) -> Result<serde_json::Value, String> {
     serde_json::from_slice(&output.stdout).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn highlight_source(source: String) -> Result<serde_json::Value, String> {
+    let root = repo_root();
+    let lex = root.join("bin/openswift-lex");
+    let mut child = Command::new(&lex)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("{}: {e}", lex.display()))?;
+    {
+        let mut stdin = child.stdin.take().ok_or("no stdin")?;
+        stdin.write_all(source.as_bytes()).map_err(|e| e.to_string())?;
+    }
+    let output = child.wait_with_output().map_err(|e| e.to_string())?;
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+    serde_json::from_slice(&output.stdout).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn render_source(source: String) -> Result<serde_json::Value, String> {
+    python_json(&["-m", "openswift", "sketch", "-"], &source)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let start = repo_root().canonicalize().unwrap_or(repo_root());
@@ -120,7 +142,8 @@ pub fn run() {
             set_project,
             read_source,
             write_source,
-            render_source
+            render_source,
+            highlight_source
         ])
         .run(tauri::generate_context!())
         .expect("error while running OpenSwift");

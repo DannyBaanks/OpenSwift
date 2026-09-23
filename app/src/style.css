@@ -24,7 +24,20 @@ aside { min-height: 0; overflow: auto; }
 .file.on { background: #fff; }
 #center { display: grid; grid-template-rows: 36px 1fr 190px; min-width: 0; min-height: 0; }
 #tab { display: flex; align-items: center; padding: 0 10px; background: #fffdf8; border-bottom: 1px solid var(--line); }
-#code { width: 100%; height: 100%; border: 0; resize: none; padding: 12px 14px; font: 13px/1.5 ui-monospace, monospace; }
+#editor { position: relative; min-height: 0; }
+#hi, #code {
+  position: absolute; inset: 0; margin: 0; border: 0; padding: 12px 14px;
+  font: 13px/1.5 ui-monospace, SFMono-Regular, monospace;
+  white-space: pre; overflow: auto; tab-size: 4;
+}
+#hi { pointer-events: none; color: #241e18; background: #fff; }
+#code { color: transparent; caret-color: #241e18; background: transparent; resize: none; }
+#hi .keyword { color: #7b2fbe; }
+#hi .string_lit, #hi .regex_lit { color: #c4561a; }
+#hi .comment { color: #8a8175; font-style: italic; }
+#hi .int_lit, #hi .float_lit { color: #1a6fbf; }
+#hi .type { color: #1f7a4d; }
+#hi .operator, #hi .punct { color: #5c564e; }
 #dock { border-top: 1px solid var(--line); display: grid; grid-template-rows: 32px 1fr; min-height: 0; background: #fbf8f3; }
 #dock .tabs { display: flex; gap: 4px; align-items: end; padding: 0 8px; }
 #dock .tabs button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; }

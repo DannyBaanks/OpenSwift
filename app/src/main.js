@@ -15,7 +15,10 @@ app.innerHTML = `
   <aside id="files"><h2>PROJECT</h2><div id="list"></div></aside>
   <section id="center">
     <div id="tab">No file</div>
-    <textarea id="code" spellcheck="false" placeholder="Open a project, pick a .swift file, press Run. This does not compile Swift."></textarea>
+    <div id="editor">
+      <pre id="hi"></pre>
+      <textarea id="code" spellcheck="false" placeholder="Open a project, pick a .swift file, press Run. This does not compile Swift."></textarea>
+    </div>
     <div id="dock">
       <div class="tabs">
         <button data-pane="debug" class="on">Debugger</button>
@@ -49,6 +52,38 @@ const panes = {
   console: "",
 };
 
+function esc(text) {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function paint(source, tokens) {
+  const hi = document.querySelector("#hi");
+  if (!tokens || !tokens.length) { hi.textContent = source + "\n"; return; }
+  let html = "";
+  let cursor = 0;
+  for (const tok of tokens) {
+    if (tok.start > cursor) html += esc(source.slice(cursor, tok.start));
+    const slice = source.slice(tok.start, tok.end);
+    let cls = tok.type;
+    if (tok.type === "identifier" && /^[A-Z@]/.test(slice)) cls = "type";
+    html += `<span class="${cls}">${esc(slice)}</span>`;
+    cursor = tok.end;
+  }
+  html += esc(source.slice(cursor));
+  hi.innerHTML = html + "\n";
+}
+let highlightTimer = 0;
+function scheduleHighlight() {
+  clearTimeout(highlightTimer);
+  highlightTimer = setTimeout(async () => {
+    try {
+      const tokens = await invoke("highlight_source", { source: code.value });
+      paint(code.value, tokens);
+    } catch (err) {
+      paint(code.value, []);
+      log("problems", String(err));
+    }
+  }, 80);
+}
 function show() { dockpre.textContent = panes[pane]; }
 function log(which, line) {
   panes[which] = (panes[which] ? panes[which] + "\n" : "") + line;
@@ -80,6 +115,8 @@ async function openFile(path) {
   const text = await invoke("read_source", { path });
   current = path;
   code.value = text;
+  paint(text, []);
+  scheduleHighlight();
   tab.textContent = path;
   document.querySelector("#run").disabled = false;
   document.querySelector("#save").disabled = false;
@@ -127,6 +164,12 @@ document.querySelectorAll("#dock .tabs button").forEach((b) => {
     pane = b.dataset.pane;
     show();
   };
+});
+code.addEventListener("input", scheduleHighlight);
+code.addEventListener("scroll", () => {
+  const hi = document.querySelector("#hi");
+  hi.scrollTop = code.scrollTop;
+  hi.scrollLeft = code.scrollLeft;
 });
 code.addEventListener("keydown", (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); run(); }

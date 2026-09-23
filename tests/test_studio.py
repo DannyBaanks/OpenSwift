@@ -1,7 +1,7 @@
 import unittest
 from pathlib import Path
 
-from openswift.studio import sketch
+from openswift.studio import highlight, sketch
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -14,6 +14,9 @@ class StudioTest(unittest.TestCase):
         self.assertIn("<svg", data["svg"])
         self.assertEqual(data["tree"]["kind"], "VStack")
         self.assertIsInstance(data["problems"], list)
+        kinds = {tok["type"] for tok in highlight(source)}
+        self.assertIn("keyword", kinds)
+        self.assertIn("string_lit", kinds)
 
 
 if __name__ == "__main__":

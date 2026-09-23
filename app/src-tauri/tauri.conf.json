@@ -14,10 +14,13 @@
       {
         "label": "main",
         "title": "OpenSwift Studio",
-        "width": 1200,
-        "height": 800,
-        "minWidth": 800,
-        "minHeight": 500
+        "width": 1280,
+        "height": 820,
+        "minWidth": 1100,
+        "minHeight": 700,
+        "maxWidth": 1440,
+        "maxHeight": 960,
+        "resizable": true
       }
     ],
     "security": { "csp": null }

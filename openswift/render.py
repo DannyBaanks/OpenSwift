@@ -32,7 +32,7 @@ def _text_width(text: str, size: float) -> float:
 def measure(node: ViewNode, max_w: float) -> tuple[float, float]:
     inner_w = max(0, max_w - node.pad_left - node.pad_right)
     if node.kind == "Text":
-        width = _text_width(node.text or " ", node.font_size)
+        width = min(_text_width(node.text or " ", node.font_size), inner_w)
         height = node.font_size * 1.35
     elif node.kind == "Spacer":
         width, height = 8, 8
@@ -63,11 +63,21 @@ def measure(node: ViewNode, max_w: float) -> tuple[float, float]:
     if node.frame_max_width:
         width = inner_w
     if node.frame_height:
-        height = node.frame_height
-    return width + node.pad_left + node.pad_right, height + node.pad_top + node.pad_bottom
+        height = min(node.frame_height, 640)
+    width = min(width + node.pad_left + node.pad_right, max_w)
+    height = height + node.pad_top + node.pad_bottom
+    return width, height
 
 
 def _place(node: ViewNode, x: float, y: float, w: float, h: float, out: list[Box]) -> None:
+    # The sketch stays inside the phone. A wide title or a max frame cannot
+    # paint past the screen edge.
+    right = BEZEL + SCREEN_W - 10
+    bottom = BEZEL + SCREEN_H - 10
+    if x >= right or y >= bottom:
+        return
+    w = max(0, min(w, right - x))
+    h = max(0, min(h, bottom - y))
     out.append(Box(x, y, w, h, node))
     ix = x + node.pad_left
     iy = y + node.pad_top

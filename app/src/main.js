@@ -125,11 +125,12 @@ async function openFile(path) {
 }
 async function run() {
   const data = await invoke("render_source", { source: code.value });
+  if (data.svg) screen.innerHTML = data.svg;
   if (!data.ok) {
-    panes.problems = data.error;
-    panes.debug = data.error;
+    panes.problems = data.error || "Could not read a view.";
+    panes.debug = panes.problems;
     show();
-    log("output", "render failed: " + data.error);
+    log("output", "render failed: " + panes.problems);
     return;
   }
   screen.innerHTML = data.svg;

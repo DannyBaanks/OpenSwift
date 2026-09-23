@@ -20,6 +20,31 @@ class PreviewTest(unittest.TestCase):
         svg = render_svg(parse_swiftui("var body: some View { Gauge(value: 1) }"))
         self.assertIn("Gauge", svg)
 
+    def test_swiftui_body_is_the_screen(self) -> None:
+        source = '''
+        import SwiftUI
+        struct ContentView: View {
+            @State private var count = 0
+            var body: some View {
+                VStack(spacing: 24) {
+                    Text("MiniSwift")
+                    Button("Increment") { count += 1 }
+                }
+            }
+        }
+        '''
+        node = parse_swiftui(source)
+        self.assertEqual(node.kind, "VStack")
+        svg = render_svg(node)
+        self.assertIn("MiniSwift", svg)
+        self.assertIn("Increment", svg)
+
+    def test_file_without_a_view_still_draws(self) -> None:
+        node = parse_swiftui("let answer = 42\n")
+        svg = render_svg(node)
+        self.assertIn("<svg", svg)
+        self.assertNotIn("no SwiftUI view call found", svg)
+
 
 if __name__ == "__main__":
     unittest.main()

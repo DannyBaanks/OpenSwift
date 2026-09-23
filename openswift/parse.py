@@ -37,7 +37,19 @@ class ParseError(Exception):
     pass
 
 
-_SKIP = {"View", "Color", "String", "Int", "Bool", "Double", "Float", "Preview"}
+_SKIP = {
+    "View", "Color", "String", "Int", "Bool", "Double", "Float", "Preview",
+    "Scene", "App", "Codable", "Sendable", "Hashable", "Identifiable",
+    "Observable", "Error", "Protocol",
+}
+# Containers and controls the preview knows how to place. Anything else with
+# a call or a brace is still a view, but these win when a file has many types.
+_SWIFTUI = {
+    "VStack", "HStack", "ZStack", "Text", "Button", "Spacer", "Divider",
+    "TextField", "SecureField", "Image", "Label", "Form", "Section", "List",
+    "ScrollView", "NavigationStack", "NavigationSplitView", "Group", "GroupBox",
+    "Toggle", "Picker", "Link", "ProgressView",
+}
 
 
 def _tokenize(source: str) -> list[tuple[str, str]]:
@@ -109,17 +121,33 @@ class _Parser:
         return False
 
     def parse_file(self) -> ViewNode:
-        body_at = None
+        bodies = []
         for idx, tok in enumerate(self.tokens):
             if tok == ("id", "body") and idx + 1 < len(self.tokens) and self.tokens[idx + 1][0] == ":":
-                body_at = idx
-                break
-        if body_at is not None:
-            self.i = body_at
-        node = self._first_view()
-        if node is None:
-            raise ParseError("no SwiftUI view call found")
-        return node
+                brace = self._brace_after(idx)
+                if brace is None:
+                    continue
+                self.i = brace + 1
+                children = self._block()
+                if not children:
+                    continue
+                node = children[0] if len(children) == 1 else ViewNode(
+                    kind="VStack", children=children, alignment="leading", spacing=8
+                )
+                bodies.append(node)
+        if bodies:
+            return max(bodies, key=_weight)
+        self.i = 0
+        found = self._first_view()
+        if found is not None and found.kind in _SWIFTUI:
+            return found
+        return _fallback(self.tokens)
+
+    def _brace_after(self, idx: int) -> int | None:
+        j = idx
+        while j < len(self.tokens) and self.tokens[j][0] != "{":
+            j += 1
+        return j if j < len(self.tokens) else None
 
     def _first_view(self) -> ViewNode | None:
         while self.peek():
@@ -288,6 +316,30 @@ def _padding(node: ViewNode, args: str) -> None:
         node.pad_left += amount
     if edge in {"all", "trailing", "horizontal"}:
         node.pad_right += amount
+
+
+def _weight(node: ViewNode) -> tuple[int, int]:
+    known = 1 if node.kind in _SWIFTUI else 0
+    count = 1 + sum(_weight(child)[1] for child in node.children)
+    return known, count
+
+
+def _fallback(tokens: list[tuple[str, str]]) -> ViewNode:
+    """A file with no view body still gets a phone, not a parser error."""
+    strings = [value for kind, value in tokens if kind == "str" and value.strip()]
+    title = next((value for kind, value in tokens if kind == "id" and value[:1].isupper()), "Swift")
+    children = [ViewNode(kind="Text", text=title, font_size=22, color="#ffffff", weight="bold")]
+    for value in strings[:6]:
+        children.append(ViewNode(kind="Text", text=value, font_size=14, color="#ffffff"))
+    if len(children) == 1:
+        children.append(ViewNode(
+            kind="Text",
+            text="This file has no view body yet.",
+            font_size=13,
+            color="#ffffff",
+            opacity=0.6,
+        ))
+    return ViewNode(kind="VStack", children=children, alignment="leading", spacing=10, background="#000000")
 
 
 def parse_swiftui(source: str) -> ViewNode:

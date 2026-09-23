@@ -10,6 +10,10 @@ from openswift.parse import ViewNode
 SCREEN_W = 390
 SCREEN_H = 780
 BEZEL = 28
+_VERTICAL = {
+    "VStack", "Form", "Section", "List", "ScrollView", "NavigationStack",
+    "NavigationSplitView", "Group", "GroupBox",
+}
 
 
 @dataclass
@@ -34,9 +38,12 @@ def measure(node: ViewNode, max_w: float) -> tuple[float, float]:
         width, height = 8, 8
     elif node.kind == "Divider":
         width, height = inner_w, 1
-    elif node.kind in {"VStack", "HStack", "ZStack"}:
+    elif node.kind in {"VStack", "HStack", "ZStack"} or node.kind in {
+        "Form", "Section", "List", "ScrollView", "NavigationStack",
+        "NavigationSplitView", "Group", "GroupBox",
+    }:
         sizes = [measure(child, inner_w) for child in node.children]
-        if node.kind == "VStack":
+        if node.kind in _VERTICAL:
             width = max((w for w, _ in sizes), default=0)
             gaps = node.spacing * max(0, len(sizes) - 1)
             height = sum(h for _, h in sizes) + gaps
@@ -66,7 +73,7 @@ def _place(node: ViewNode, x: float, y: float, w: float, h: float, out: list[Box
     iy = y + node.pad_top
     iw = max(0, w - node.pad_left - node.pad_right)
     ih = max(0, h - node.pad_top - node.pad_bottom)
-    if node.kind == "VStack":
+    if node.kind in _VERTICAL:
         sizes = [measure(child, iw) for child in node.children]
         fixed = sum(sh for child, (_, sh) in zip(node.children, sizes) if child.kind != "Spacer")
         spacers = sum(1 for child in node.children if child.kind == "Spacer")

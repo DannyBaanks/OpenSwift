@@ -196,5 +196,4 @@ def render_svg(root: ViewNode, device_id: str = "iphone-14") -> str:
         f'<text x="{BEZEL + 16}" y="{height - 18}" fill="#666" font-family="ui-monospace,monospace" font-size="11">OpenSwift sketch · not compiled Swift</text>'
     )
     parts.append("</svg>")
-    _ = screen
     return "\n".join(parts)

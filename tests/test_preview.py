@@ -15,6 +15,10 @@ class PreviewTest(unittest.TestCase):
         self.assertIn("connect", svg)
         self.assertIn("<svg", svg)
         self.assertIn("not compiled Swift", svg)
+        self.assertIn('id="notch"', svg)
+        island = render_svg(parse_swiftui(source), "iphone-15")
+        self.assertIn('id="island"', island)
+        self.assertNotIn('id="notch"', island)
 
     def test_unknown_view_is_labeled(self) -> None:
         svg = render_svg(parse_swiftui("var body: some View { Gauge(value: 1) }"))

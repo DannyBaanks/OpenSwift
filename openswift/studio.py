@@ -46,7 +46,7 @@ def highlight(source: str) -> list:
         return []
 
 
-def sketch(source: str) -> dict:
+def sketch(source: str, device: str = "iphone-14") -> dict:
     try:
         root = parse_swiftui(source)
     except ParseError as exc:
@@ -56,10 +56,11 @@ def sketch(source: str) -> dict:
     return {
         "ok": True,
         "error": "",
-        "svg": render_svg(root),
+        "svg": render_svg(root, device),
         "problems": problems,
         "tree": _tree(root),
         "tokens": highlight(source),
+        "device": device,
     }
 
 

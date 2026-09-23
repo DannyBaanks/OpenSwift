@@ -41,6 +41,7 @@ def main(argv: list[str] | None = None) -> int:
 
     sketch_cmd = sub.add_parser("sketch", help="print the sketch as JSON")
     sketch_cmd.add_argument("source", type=Path, help="A .swift file, or - for stdin")
+    sketch_cmd.add_argument("--device", default="iphone-14")
 
     args = parser.parse_args(argv)
     try:
@@ -58,7 +59,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.cmd == "sketch":
             text = sys.stdin.read() if str(args.source) == "-" else args.source.read_text(encoding="utf-8")
-            print(json.dumps(sketch(text)))
+            print(json.dumps(sketch(text, args.device)))
             return 0
         print(status_text())
         return 0

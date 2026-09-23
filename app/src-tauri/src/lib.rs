@@ -127,8 +127,9 @@ fn highlight_source(source: String) -> Result<serde_json::Value, String> {
 }
 
 #[tauri::command]
-fn render_source(source: String) -> Result<serde_json::Value, String> {
-    python_json(&["-m", "openswift", "sketch", "-"], &source)
+fn render_source(source: String, device: Option<String>) -> Result<serde_json::Value, String> {
+    let device = device.unwrap_or_else(|| "iphone-14".to_string());
+    python_json(&["-m", "openswift", "sketch", "-", "--device", &device], &source)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

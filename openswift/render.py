@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from openswift.devices import get_device
 from openswift.parse import ViewNode
 
 
@@ -109,6 +110,24 @@ def _place(node: ViewNode, x: float, y: float, w: float, h: float, out: list[Box
             _place(child, ix, iy, min(cw, iw), min(ch, ih), out)
 
 
+def _sensor(island: bool) -> str:
+    if island:
+        width, height = 126, 36
+        x = BEZEL + (SCREEN_W - width) / 2
+        y = BEZEL + 16
+        return (
+            f'<rect id="island" x="{x:.1f}" y="{y:.1f}" width="{width}" height="{height}" '
+            f'rx="18" fill="#0a0a0a"/>'
+        )
+    notch_w, notch_h = 174, 36
+    x = BEZEL + (SCREEN_W - notch_w) / 2
+    y = BEZEL
+    return (
+        f'<path id="notch" fill="#0a0a0a" d="M {x:.1f} {y} h {notch_w} '
+        f'v {notch_h - 14} q 0 14 -14 14 h -{notch_w - 28} q -14 0 -14 -14 z"/>'
+    )
+
+
 def _esc(text: str) -> str:
     return (
         text.replace("&", "&amp;")
@@ -118,24 +137,26 @@ def _esc(text: str) -> str:
     )
 
 
-def render_svg(root: ViewNode) -> str:
-    screen = ViewNode(kind="screen", background="#000000", children=[root])
-    # Give the root the phone's content box.
+def render_svg(root: ViewNode, device_id: str = "iphone-14") -> str:
+    device = get_device(device_id)
+    global SCREEN_W, SCREEN_H
+    SCREEN_W = device.width
+    SCREEN_H = device.height
     root.frame_max_width = True
     boxes: list[Box] = []
     content_w = SCREEN_W - 36
     content_h = SCREEN_H - 88
-    rw, rh = measure(root, content_w)
+    _, rh = measure(root, content_w)
     _place(root, BEZEL + 18, BEZEL + 54, content_w, max(rh, content_h), boxes)
     width = SCREEN_W + BEZEL * 2
     height = SCREEN_H + BEZEL * 2
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">',
         '<rect width="100%" height="100%" fill="#1c1c1e"/>',
-        f'<rect x="8" y="8" width="{width - 16}" height="{height - 16}" rx="46" fill="#0a0a0a"/>',
-        f'<rect x="{BEZEL}" y="{BEZEL}" width="{SCREEN_W}" height="{SCREEN_H}" rx="36" fill="#000000"/>',
-        f'<rect x="{BEZEL + SCREEN_W / 2 - 58}" y="{BEZEL + 12}" width="116" height="28" rx="14" fill="#111"/>',
-        f'<text x="{BEZEL + 28}" y="{BEZEL + 36}" fill="#fff" font-family="ui-sans-serif,system-ui" font-size="12">9:41</text>',
+        f'<rect x="8" y="8" width="{width - 16}" height="{height - 16}" rx="54" fill="#0a0a0a"/>',
+        f'<rect x="{BEZEL}" y="{BEZEL}" width="{SCREEN_W}" height="{SCREEN_H}" rx="40" fill="#000000"/>',
+        _sensor(device.island),
+        f'<text x="{BEZEL + 22}" y="{BEZEL + 28}" fill="#fff" font-family="ui-sans-serif,system-ui" font-size="13" font-weight="600">9:41</text>',
     ]
     for box in boxes:
         node = box.node

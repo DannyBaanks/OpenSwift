@@ -44,3 +44,7 @@ python3 -m openswift draw examples/hello.swift -o /tmp/hello.svg
 ```
 
 `render` reads the locked file again, writes `preview.png`, and copies it to the next `iterations/NNN.png`.
+
+## Credits
+
+The studio colors Swift with the lexer from [msf](https://github.com/toprakdeviren/msf) (MIT, by Toprakdeviren), pinned to one commit and built by `tools/build-lex.sh`. None of its code is in this repository. [NOTICE.md](NOTICE.md) has the commit, what ships and what does not.

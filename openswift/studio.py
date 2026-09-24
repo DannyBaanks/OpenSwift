@@ -81,13 +81,41 @@ def _files(root: Path) -> list[str]:
     return sorted(found)
 
 
-def serve(project: Path, host: str = "127.0.0.1", port: int = 8765) -> None:
+def request_refusal(method: str, headers, allowed_hosts: set[str]) -> str | None:
+    """Why a request must be refused, or None.
+
+    The studio can write files, so any web page the user has open must not be
+    able to drive it. Host blocks DNS rebinding; Origin blocks cross-site
+    requests; requiring a JSON body on POST forces a CORS preflight, which this
+    server never answers, so a plain form or text/plain POST cannot get in.
+    """
+    host = (headers.get("Host") or "").lower()
+    if host not in allowed_hosts:
+        return "unexpected Host"
+    origin = headers.get("Origin")
+    if origin is not None and urlparse(origin).netloc.lower() not in allowed_hosts:
+        return "cross-origin request"
+    if method == "POST":
+        ctype = (headers.get("Content-Type") or "").split(";")[0].strip().lower()
+        if ctype != "application/json":
+            return "POST body must be application/json"
+    return None
+
+
+def make_server(project: Path, host: str = "127.0.0.1", port: int = 8765) -> ThreadingHTTPServer:
     project = project.resolve()
     page = PAGE.read_text(encoding="utf-8")
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, fmt: str, *args) -> None:
             print(f"studio {self.address_string()} {fmt % args}")
+
+        def _refused(self, method: str) -> bool:
+            reason = request_refusal(method, self.headers, self.server.allowed_hosts)
+            if reason:
+                self._json(403, {"error": reason})
+                return True
+            return False
 
         def _json(self, code: int, payload: dict) -> None:
             body = json.dumps(payload).encode()
@@ -104,6 +132,8 @@ def serve(project: Path, host: str = "127.0.0.1", port: int = 8765) -> None:
             return json.loads(self.rfile.read(length).decode())
 
         def do_GET(self) -> None:  # noqa: N802
+            if self._refused("GET"):
+                return
             url = urlparse(self.path)
             if url.path == "/":
                 body = page.replace("__PROJECT__", str(project)).encode()
@@ -127,8 +157,14 @@ def serve(project: Path, host: str = "127.0.0.1", port: int = 8765) -> None:
             self._json(404, {"error": "not found"})
 
         def do_POST(self) -> None:  # noqa: N802
+            if self._refused("POST"):
+                return
             url = urlparse(self.path)
-            data = self._read()
+            try:
+                data = self._read()
+            except (ValueError, UnicodeDecodeError):
+                self._json(400, {"error": "body is not JSON"})
+                return
             if url.path == "/api/render":
                 self._json(200, sketch(data.get("source", "")))
                 return
@@ -144,5 +180,12 @@ def serve(project: Path, host: str = "127.0.0.1", port: int = 8765) -> None:
             self._json(404, {"error": "not found"})
 
     httpd = ThreadingHTTPServer((host, port), Handler)
-    print(f"http://{host}:{port}")
+    bound = httpd.server_address[1]
+    httpd.allowed_hosts = {f"{name}:{bound}" for name in {host, "127.0.0.1", "localhost"}}
+    return httpd
+
+
+def serve(project: Path, host: str = "127.0.0.1", port: int = 8765) -> None:
+    httpd = make_server(project, host, port)
+    print(f"http://{host}:{httpd.server_address[1]}")
     httpd.serve_forever()

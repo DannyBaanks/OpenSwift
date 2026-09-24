@@ -72,3 +72,13 @@ Open abre una carpeta. Eliges un `.swift`. Run dibuja el teléfono. Abajo: Debug
 - Sin `focus` previo, `render` dice `no .ui-session here`.
 - Pedir `--provider miniswift` se niega. No hay compilador detrás.
 - El PNG es un mapa de píxeles del bosquejo, no una captura de Xcode.
+- `studio` solo le contesta a su propia página, abierta como `http://127.0.0.1:<puerto>` o `http://localhost:<puerto>`. Con otro nombre (la IP de tu red, o un dominio que apunte a tu máquina) responde 403. Es a propósito: el studio escribe archivos, y antes de este cambio cualquier página web que tuvieras abierta en el navegador podía guardarte archivos en el proyecto. Probado el 24 de septiembre de 2026:
+
+  ```console
+  $ curl -H 'Host: 192.168.1.50:8798' http://127.0.0.1:8798/api/files
+  {"error": "unexpected Host"}
+
+  $ curl -X POST -H 'Content-Type: text/plain' -H 'Origin: https://evil.example' \
+      --data '{"path":"pwned.txt","text":"x"}' http://127.0.0.1:8799/api/save
+  {"error": "cross-origin request"}
+  ```

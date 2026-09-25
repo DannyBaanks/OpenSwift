@@ -25,6 +25,7 @@ def main(argv: list[str] | None = None) -> int:
     draw = sub.add_parser("draw", help="write one SVG from a SwiftUI sketch")
     draw.add_argument("source", type=Path)
     draw.add_argument("-o", "--output", type=Path, required=True)
+    draw.add_argument("--device", default="iphone-14")
 
     lock = sub.add_parser("focus", help="lock the table to one view")
     lock.add_argument("target", type=Path)
@@ -32,7 +33,8 @@ def main(argv: list[str] | None = None) -> int:
     lock.add_argument("--intent", required=True)
     lock.add_argument("--provider", default="approximate-web", choices=PROVIDERS)
 
-    sub.add_parser("render", help="draw the locked view and keep the iteration")
+    render_parser = sub.add_parser("render", help="draw the locked view and keep the iteration")
+    render_parser.add_argument("--device", default="iphone-14")
     sub.add_parser("status", help="print the current lock")
 
     studio = sub.add_parser("studio", help="open the local editor and phone sketch")
@@ -46,13 +48,13 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         if args.cmd == "draw":
-            return _draw(args.source, args.output)
+            return _draw(args.source, args.output, args.device)
         if args.cmd == "focus":
             root = focus(args.target, args.allow, args.intent, args.provider)
             print(root)
             return 0
         if args.cmd == "render":
-            print(render_session())
+            print(render_session(device_id=args.device))
             return 0
         if args.cmd == "studio":
             serve(args.project.resolve(), port=args.port)
@@ -68,10 +70,10 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
 
-def _draw(source: Path, output: Path) -> int:
+def _draw(source: Path, output: Path, device_id: str = "iphone-14") -> int:
     root = parse_swiftui(source.read_text(encoding="utf-8"))
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(render_svg(root), encoding="utf-8")
+    output.write_text(render_svg(root, device_id), encoding="utf-8")
     print(output)
     return 0
 

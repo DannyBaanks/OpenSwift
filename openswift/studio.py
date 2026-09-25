@@ -166,7 +166,8 @@ def make_server(project: Path, host: str = "127.0.0.1", port: int = 8765) -> Thr
                 self._json(400, {"error": "body is not JSON"})
                 return
             if url.path == "/api/render":
-                self._json(200, sketch(data.get("source", "")))
+                device = data.get("device", "iphone-14")
+                self._json(200, sketch(data.get("source", ""), device))
                 return
             if url.path == "/api/save":
                 try:

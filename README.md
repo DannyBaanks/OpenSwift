@@ -5,25 +5,39 @@
 <h1 align="center">OpenSwift</h1>
 
 <p align="center">
-  <strong>Una mesa compartida para una pantalla.</strong><br>
-  Tú nombras la vista. OpenSwift bloquea la sesión en ese archivo, lista los pocos archivos que un agente puede editar, y dibuja un bosquejo del teléfono. El siguiente comentario ("menos apretado", "ese botón es enorme") va sobre ese dibujo, no sobre el resto del repo.
+  <strong>SwiftUI visual iteration without pretending to be Xcode.</strong><br>
+  Pick one screen, declare the files that belong to the task, render an approximate iPhone preview, and keep every iteration as evidence a human and an agent can both inspect.
 </p>
 
 <p align="center">
-  <a href="#-pruébalo-en-30-segundos"><strong>▶ Pruébalo en 30 segundos</strong></a>
+  <a href="#quick-start"><strong>Quick start</strong></a>
   &nbsp;·&nbsp;
-  <a href="#-comandos"><strong>Comandos</strong></a>
+  <a href="#studio"><strong>Studio</strong></a>
   &nbsp;·&nbsp;
-  <a href="#-providers"><strong>Providers</strong></a>
+  <a href="#providers"><strong>Providers</strong></a>
   &nbsp;·&nbsp;
-  <a href="#-studio"><strong>Studio</strong></a>
+  <a href="#ui-session"><strong>.ui-session</strong></a>
 </p>
 
 ---
 
-## ¿Qué es?
+## What OpenSwift is
 
-No compila Swift. Dibuja un **bosquejo** de stacks, texto y botones dentro de un marco de iPhone realista (notch clásico, notch reducido, Dynamic Island, home indicator, botones laterales). La sesión alrededor del dibujo es el producto: una carpeta `.ui-session` con `target.json`, `intent.md`, `source.swift`, `preview.svg`, `preview.png` y `iterations/` con hashes SHA-256. Un agente y una persona miran lo mismo.
+OpenSwift is a lightweight visual harness for SwiftUI work.
+
+It does **not compile Swift**. The current provider reads a useful subset of SwiftUI, builds a view tree, lays it out approximately, and emits SVG/PNG previews inside realistic iPhone frames.
+
+The preview is only half of the idea. The other half is the session around it:
+
+```text
+intent + target + allowed files
+              ↓
+            render
+              ↓
+ preview + tree + problems + history
+```
+
+That gives a human and an agent a small, explicit workspace instead of asking either of them to reason about an entire project at once.
 
 <p align="center">
   <img src="docs/img/iphone11.png" alt="iPhone 11 classic notch" width="30%">
@@ -34,116 +48,146 @@ No compila Swift. Dibuja un **bosquejo** de stacks, texto y botones dentro de un
 </p>
 
 <p align="center">
-  <em>iPhone 11 (notch clásico) · iPhone 14 (notch reducido) · iPhone 16 Pro (Dynamic Island)</em>
+  <em>iPhone 11 · iPhone 14 · iPhone 16 Pro</em>
 </p>
+
+## Why it exists
+
+Xcode Preview is excellent when Xcode is available. OpenSwift is aimed at a different workflow: quick visual feedback, Linux-friendly tooling, and reproducible UI iteration for humans and coding agents.
+
+A session answers four questions explicitly:
+
+- **What screen are we working on?** `target`
+- **What related files belong to the task?** `allowed`
+- **What is the human trying to improve?** `intent`
+- **What did each iteration actually look like?** `iterations/*.png` + SHA-256
+
+OpenSwift calls the output a **sketch** on purpose. It should be fast, inspectable, and honest about where approximation ends.
 
 ## Providers
 
-| name | qué hace hoy |
-|---|---|
-| `approximate-web` | el único que dibuja. SVG + PNG, sin compilador |
-| `miniswift` | nombrado, no cableado |
-| `xcode-preview` | nombrado, no cableado |
+The frontend is designed around replaceable rendering backends.
 
-## Pruébalo en 30 segundos
+| Provider | Status | Purpose |
+|---|---|---|
+| `approximate-web` | ✅ active | Local SwiftUI subset → SVG + PNG, no compiler |
+| `miniswift` | 🚧 named | Future browser/compiler-backed provider |
+| `xcode-preview` | 🚧 named | Future native reference provider |
+
+Today, only `approximate-web` is wired. Asking for another provider fails closed instead of silently pretending it worked.
+
+## Quick start
 
 ```bash
-# 1. Clona y entra
+# From the OpenSwift repo
 cd OpenSwift
 
-# 2. Bloquea una vista (crea .ui-session/)
+# Create a focused UI session
 PYTHONPATH="." python3 -m openswift focus examples/hello.swift \
-  --allow Theme.swift --allow ModelPicker.swift \
-  --intent "hacer el panel menos apretado"
+  --allow Theme.swift \
+  --allow ModelPicker.swift \
+  --intent "make the panel feel less cramped"
 
-# 3. Dibuja la primera iteración
+# Render one iteration
 PYTHONPATH="." python3 -m openswift render --device iphone-16-pro
 
-# 4. Ve el estado
+# Inspect the session
 PYTHONPATH="." python3 -m openswift status
 ```
 
-Salida de `status`:
+Example status:
 
-```
+```text
 target: /home/danny/.../OpenSwift/examples/hello.swift
 provider: approximate-web
 allowed: Theme.swift, ModelPicker.swift
 read only: everything except target and allowed
 iteration: 1
 session: /home/danny/.../.ui-session
-intent: hacer el panel menos apretado
+intent: make the panel feel less cramped
 ```
 
-Cada `render` añade `iterations/002.png`, `003.png`… para poder decir "esa, pero con el botón de la otra".
-
-## Comandos
-
-```bash
-# Dibuja un SVG directo (sin sesión)
-PYTHONPATH="." python3 -m openswift draw examples/hello.swift -o /tmp/hello.svg --device iphone-15
-
-# Bloquea la mesa a una vista
-PYTHONPATH="." python3 -m openswift focus ruta/a/Vista.swift \
-  --allow Dep1.swift --allow Dep2.swift \
-  --intent "tu intención" \
-  --provider approximate-web
-
-# Renderiza la vista bloqueada (usa .ui-session del cwd)
-PYTHONPATH="." python3 -m openswift render --device iphone-14
-
-# Estado de la sesión actual
-PYTHONPATH="." python3 -m openswift status
-
-# Sketch como JSON (para tooling)
-PYTHONPATH="." python3 -m openswift sketch examples/hello.swift --device iphone-12
-```
-
-Dispositivos soportados: `iphone-11`, `iphone-12`, `iphone-13`, `iphone-14`, `iphone-14-plus`, `iphone-14-pro`, `iphone-15`, `iphone-16`, `iphone-16-pro`.
+Each render adds another snapshot such as `iterations/001.png`, `002.png`, `003.png` so feedback can refer to concrete visual states.
 
 ## Studio
 
-Editor web local + previsualización del teléfono. No compila Swift.
+OpenSwift has two interactive surfaces that use the same sketch engine.
 
-```bash
-# Desde tu proyecto (no desde OpenSwift)
-PYTHONPATH="/home/danny/Development/ISyCo Git/OpenSwift" python3 -m openswift studio /ruta/a/tu/proyecto --port 8765
-```
+### Desktop app
 
-Abre `http://127.0.0.1:8765`. Elige un `.swift` a la izquierda, pulsa **Run** y verás el bosquejo a la derecha.
+The Tauri app provides:
 
-- **Debugger**: árbol del bosquejo (no call stack)
-- **Output**: logs de render
-- **Problems**: vistas/modificadores no dibujados
-- **Console**: eventos
-
-Seguridad: el servidor solo responde a `Host: 127.0.0.1` o `localhost`, rechaza `Origin` cruzados y exige `Content-Type: application/json` en POST. Probado contra DNS rebinding y formularios `text/plain`.
-
-<p align="center">
-  <img src="docs/img/iphone16pro.png" alt="Studio preview on iPhone 16 Pro" width="60%">
-</p>
-
-## App de escritorio (Tauri)
+- project/file navigator
+- Swift editor
+- syntax highlighting through the pinned `msf` lexer
+- device selector
+- live iPhone preview
+- Debugger / Output / Problems / Console panes
+- `Ctrl+Enter` to render
+- `Ctrl+S` to save
 
 ```bash
 cd app
 npm install
-npm run tauri dev      # desarrollo
-npm run tauri build    # .deb en src-tauri/target/release/bundle/deb/
+npm run tauri dev
 ```
 
-La app incluye selector de dispositivo, árbol de archivos, editor con syntax highlighting (via `msf` lexer), y el mismo motor de bosquejo.
+Build a `.deb` with:
 
-## La carpeta `.ui-session`
+```bash
+npm run tauri build
+```
+
+### Local web Studio
+
+```bash
+PYTHONPATH="/path/to/OpenSwift" \
+  python3 -m openswift studio /path/to/your/project --port 8765
+```
+
+Then open `http://127.0.0.1:8765`.
+
+The local server only accepts its expected localhost host/origin and JSON POSTs. This blocks common cross-site and DNS-rebinding-style attempts to drive a write-capable local tool from an unrelated browser page.
+
+## Commands
+
+```bash
+# Draw a standalone SVG without creating a session
+PYTHONPATH="." python3 -m openswift draw examples/hello.swift \
+  -o /tmp/hello.svg --device iphone-15
+
+# Create a session
+PYTHONPATH="." python3 -m openswift focus path/to/View.swift \
+  --allow Dependency.swift \
+  --intent "reduce visual density" \
+  --provider approximate-web
+
+# Render the active session
+PYTHONPATH="." python3 -m openswift render --device iphone-14
+
+# Inspect session state
+PYTHONPATH="." python3 -m openswift status
+
+# Produce tooling-friendly JSON
+PYTHONPATH="." python3 -m openswift sketch examples/hello.swift --device iphone-12
+```
+
+Supported device frames:
+
+`iphone-11` · `iphone-12` · `iphone-13` · `iphone-14` · `iphone-14-plus` · `iphone-14-pro` · `iphone-15` · `iphone-16` · `iphone-16-pro`
+
+## `.ui-session`
+
+A focused session is just files on disk:
 
 ```text
 .ui-session/
-├── target.json      # target, allowed, provider, read_only, created, iteration, preview_sha256
-├── intent.md        # tu intención en texto
-├── source.swift     # copia del archivo bloqueado
-├── preview.svg      # último SVG
-├── preview.png      # último PNG
-├── preview.sha256   # hash del PNG
+├── target.json
+├── intent.md
+├── source.swift
+├── preview.svg
+├── preview.png
+├── preview.sha256
 └── iterations/
     ├── 001.png
     ├── 001.sha256
@@ -151,37 +195,44 @@ La app incluye selector de dispositivo, árbol de archivos, editor con syntax hi
     └── 002.sha256
 ```
 
-`target.json` es la verdad única: qué archivo está en juego, qué dependencias puede tocar el agente, y que todo lo demás es **read only**.
+`target.json` records the target, the explicitly allowed related files, provider metadata, iteration number, and the hash of the latest preview.
 
-## Qué dibuja (y qué no)
+The session is intentionally plain and inspectable. There is no hidden project database and no proprietary workspace format.
 
-| SwiftUI | Dibuja |
+## What the renderer understands
+
+| SwiftUI surface | Current behavior |
 |---|---|
-| `VStack` / `HStack` / `ZStack` | ✅ layout real |
-| `Text` / `Button` | ✅ con texto, fuente, color, peso |
+| `VStack` / `HStack` / `ZStack` | ✅ approximate layout |
+| `Text` / `Button` | ✅ text, size, color, weight |
 | `Spacer` / `Divider` | ✅ |
-| `TextField` / `SecureField` / `Label` / `Image` | ✅ como caja etiquetada |
-| `Form` / `Section` / `List` / `ScrollView` | ✅ contenedores verticales |
+| `TextField` / `SecureField` / `Label` / `Image` | ✅ labeled placeholder box |
+| `Form` / `Section` / `List` / `ScrollView` | ✅ vertical containers |
 | `NavigationStack` / `Group` / `GroupBox` | ✅ |
-| `.font(.system(size:weight:))` | ✅ size + bold |
-| `.foregroundColor/.foregroundStyle` | ✅ color + opacity |
-| `.background` | ✅ color |
-| `.padding` (todos los edges) | ✅ |
-| `.cornerRadius` | ✅ |
+| `.font(.system(size:weight:))` | ✅ |
+| `.foregroundColor` / `.foregroundStyle` | ✅ color + opacity |
+| `.background` / `.padding` / `.cornerRadius` | ✅ |
 | `.frame(height: / maxWidth: .infinity)` | ✅ |
-| `.sheet`, `.overlay`, bindings, animaciones | ❌ sale en `problems` como `.sheet is ignored` |
-| Vistas custom / librerías externas | ❌ caja con su nombre |
+| `.sheet`, bindings, animation, runtime state | ⚠️ reported as unsupported/ignored |
+| custom/external views | ⚠️ rendered as labeled boxes |
+
+Unsupported syntax is surfaced through **Problems** rather than silently presented as if it were fully faithful SwiftUI.
 
 ## Tests
 
 ```bash
 PYTHONPATH="." python3 -m unittest discover -s tests
-# 13 tests OK (preview, session, studio, security)
 ```
 
-## Créditos
+The suite covers preview generation, session behavior, Studio requests, and local-server security checks.
 
-El studio colorea Swift con el lexer de [msf](https://github.com/toprakdeviren/msf) (MIT, Toprakdeviren), pinedo a un commit y compilado por `tools/build-lex.sh`. Ningún código de msf está en este repo. Ver [NOTICE.md](NOTICE.md) para el commit exacto, qué se distribuye y qué no.
+## Credits and provenance
+
+OpenSwift can color Swift source using the lexer from [`msf`](https://github.com/toprakdeviren/msf) by Toprakdeviren (MIT).
+
+The dependency is fetched only by `tools/build-lex.sh`, pinned to an exact commit, and is not vendored into this repository. See [`NOTICE.md`](NOTICE.md) for the pinned revision and distribution notes.
+
+MiniSwift inspired the idea of getting useful Swift feedback without requiring the full Xcode workflow. OpenSwift does not include MiniSwift code; `miniswift` is currently only a future provider name.
 
 ---
 
@@ -192,6 +243,6 @@ El studio colorea Swift con el lexer de [msf](https://github.com/toprakdeviren/m
 </p>
 
 <p align="center">
-  Hecho para coordinar humanos y agentes en maquetado UI.<br>
-  Licencia MIT.
+  Built for reproducible UI iteration between humans and agents.<br>
+  MIT License.
 </p>

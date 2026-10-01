@@ -85,6 +85,8 @@ bun run tauri build
 
 En Linux se generan los paquetes disponibles, incluido `.deb`, `.rpm` y AppImage. En Windows, Tauri integra `icon.ico` en el ejecutable y usa los paquetes nativos disponibles. La compilación requiere las dependencias nativas de desarrollo de Tauri. Consulta la guía de Tauri para los requisitos de tu sistema.
 
+Descarga los instaladores de escritorio desde [Releases](https://github.com/DannyBaanks/OpenSwift/releases). El release `v0.5` incluye un instalador NSIS `.exe` para Windows, un `.AppImage` para Linux y sus checksums SHA-256.
+
 ### Studio web local
 
 Desde la raíz de OpenSwift, apunta `PYTHONPATH` al clon y pasa la carpeta del proyecto que quieras abrir:

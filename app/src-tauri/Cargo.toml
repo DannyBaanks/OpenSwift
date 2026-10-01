@@ -1,6 +1,6 @@
 [package]
 name = "openswift"
-version = "0.1.0"
+version = "0.5.0"
 description = "OpenSwift Studio"
 authors = ["DannyBaanks"]
 edition = "2021"

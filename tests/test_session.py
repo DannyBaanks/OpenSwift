@@ -1,4 +1,5 @@
 import tempfile
+import json
 import unittest
 from pathlib import Path
 
@@ -13,6 +14,9 @@ class SessionTest(unittest.TestCase):
             cwd = Path(tmp)
             target = ROOT / "examples" / "hello.swift"
             focus(target, ["Theme.swift"], "less cramped", "approximate-web", cwd)
+            record = json.loads((cwd / ".ui-session" / "target.json").read_text(encoding="utf-8"))
+            self.assertEqual(record["writable_paths"][0], str(target.resolve()))
+            self.assertEqual(record["writable_paths"][1], str((target.parent / "Theme.swift").resolve()))
             first = render_session(cwd)
             second = render_session(cwd)
             self.assertTrue(first.name == "001.png")

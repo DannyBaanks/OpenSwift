@@ -71,6 +71,21 @@ def _safe(root: Path, raw: str) -> Path:
     return path
 
 
+def _session_allows_write(root: Path, path: Path) -> bool:
+    """Honor an active .ui-session as the write boundary for Studio."""
+    session = root / ".ui-session" / "target.json"
+    if not session.is_file():
+        return True
+    record = json.loads(session.read_text(encoding="utf-8"))
+    writable = record.get("writable_paths")
+    if writable is None:
+        target = Path(record["target"]).resolve()
+        writable = [str(target)]
+        writable.extend(str((target.parent / item).resolve()) for item in record.get("allowed", []))
+    resolved = path.resolve()
+    return any(resolved == Path(item).resolve() for item in writable)
+
+
 def _files(root: Path) -> list[str]:
     skip = {".git", ".ui-session", "__pycache__", "node_modules"}
     found = []
@@ -136,9 +151,14 @@ def make_server(project: Path, host: str = "127.0.0.1", port: int = 8765) -> Thr
                 return
             url = urlparse(self.path)
             if url.path == "/":
-                body = page.replace("__PROJECT__", str(project)).encode()
+                body = page.encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header(
+                    "Content-Security-Policy",
+                    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; "
+                    "img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+                )
                 self.send_header("Content-Length", str(len(body)))
                 self.end_headers()
                 self.wfile.write(body)
@@ -172,6 +192,9 @@ def make_server(project: Path, host: str = "127.0.0.1", port: int = 8765) -> Thr
             if url.path == "/api/save":
                 try:
                     path = _safe(project, data.get("path", ""))
+                    if not _session_allows_write(project, path):
+                        self._json(403, {"error": "file is read-only in active .ui-session"})
+                        return
                     path.parent.mkdir(parents=True, exist_ok=True)
                     path.write_text(data.get("text", ""), encoding="utf-8")
                     self._json(200, {"ok": True})

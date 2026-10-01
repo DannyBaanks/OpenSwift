@@ -15,6 +15,8 @@ class StudioOriginTest(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.project = Path(self.tmp.name)
         (self.project / "A.swift").write_text("struct A {}\n", encoding="utf-8")
+        (self.project / "B.swift").write_text("struct B {}\n", encoding="utf-8")
+        (self.project / "C.swift").write_text("struct C {}\n", encoding="utf-8")
         self.httpd = make_server(self.project, port=0)
         self.port = self.httpd.server_address[1]
         threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
@@ -71,6 +73,25 @@ class StudioOriginTest(unittest.TestCase):
         conn.request("POST", "/api/render", body=b"{not json", headers={"Content-Type": "application/json"})
         self.assertEqual(conn.getresponse().status, 400)
         conn.close()
+
+    def test_active_session_enforces_target_and_allowed(self) -> None:
+        session = self.project / ".ui-session"
+        session.mkdir()
+        (session / "target.json").write_text(json.dumps({
+            "target": str(self.project / "A.swift"),
+            "allowed": ["B.swift"],
+            "writable_paths": [str(self.project / "A.swift"), str(self.project / "B.swift")],
+        }), encoding="utf-8")
+        headers = {"Content-Type": "application/json", "Origin": f"http://127.0.0.1:{self.port}"}
+
+        status, _ = self.request("POST", "/api/save", {"path": "A.swift", "text": "target\n"}, headers)
+        self.assertEqual(status, 200)
+        status, _ = self.request("POST", "/api/save", {"path": "B.swift", "text": "allowed\n"}, headers)
+        self.assertEqual(status, 200)
+        status, data = self.request("POST", "/api/save", {"path": "C.swift", "text": "blocked\n"}, headers)
+        self.assertEqual(status, 403)
+        self.assertIn("read-only", data["error"])
+        self.assertEqual((self.project / "C.swift").read_text(encoding="utf-8"), "struct C {}\n")
 
 
 if __name__ == "__main__":

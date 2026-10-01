@@ -88,7 +88,6 @@
   <span>approximate-web · not a Swift debugger</span>
 </footer>
 <script>
-const project = "__PROJECT__";
 const code = document.querySelector("#code");
 const filesEl = document.querySelector("#files");
 const tab = document.querySelector("#tab");
@@ -100,11 +99,10 @@ let files = [];
 let pane = "debug";
 const panes = { debug: "No Swift runtime.\nOpen a file and press Run.\nThe tree of the sketch shows up here. Breakpoints are not executed.", output: "", problems: "", console: "" };
 
-document.querySelector("#project").textContent = project;
-
 async function loadFiles() {
   const res = await fetch("/api/files");
   const data = await res.json();
+  document.querySelector("#project").textContent = data.root;
   files = data.files;
   drawFiles();
 }

@@ -5,44 +5,51 @@ import { open } from "@tauri-apps/plugin-dialog";
 const app = document.querySelector("#app");
 app.innerHTML = `
 <header>
-  <strong>OpenSwift</strong>
-  <button id="open">Open</button>
-  <button id="run" class="primary" disabled>Run</button>
-  <button id="save" disabled>Save</button>
-  <input id="search" placeholder="Filter files" />
+  <div class="brand"><span class="brand-mark">O</span><div><strong>OpenSwift</strong><small>SwiftUI sketch studio</small></div></div>
+  <div class="toolbar">
+    <button id="open" class="button-quiet"><span class="button-icon">▱</span> Open project</button>
+    <span class="toolbar-rule"></span>
+    <button id="run" class="primary" disabled><span class="button-icon">▶</span> Run preview <kbd>Ctrl+Enter</kbd></button>
+    <button id="save" class="button-quiet" disabled>Save <kbd>Ctrl+S</kbd></button>
+  </div>
+  <label class="search-box"><span>⌕</span><input id="search" placeholder="Find a Swift file" /><kbd>Ctrl+K</kbd></label>
 </header>
 <main>
-  <aside id="files"><h2>PROJECT NAVIGATOR</h2><div id="list"></div></aside>
+  <aside id="files"><div class="section-heading"><div><span class="eyebrow">WORKSPACE</span><h2>Project files</h2></div><span id="filecount" class="count-badge">0</span></div><div id="list"></div><div id="files-empty" class="sidebar-empty"><span class="empty-glyph">⌘</span><strong>No Swift files yet</strong><span>Open a project folder to browse its Swift views.</span></div></aside>
   <section id="center">
-    <div id="tab">No file</div>
+    <div id="tab"><span class="swift-badge">S</span><span id="filename">No file selected</span><span id="dirty" class="dirty-state">Saved</span></div>
     <div id="editor">
       <pre id="hi"></pre>
-      <textarea id="code" spellcheck="false" placeholder="Open a project, pick a .swift file, press Run. This does not compile Swift."></textarea>
+      <textarea id="code" spellcheck="false" placeholder="Your Swift source will appear here…"></textarea>
+      <div id="editor-welcome" class="editor-welcome"><div class="welcome-icon">⌘</div><p class="eyebrow">A SMALLER LOOP FOR UI IDEAS</p><h1>One screen at a time.</h1><p>Open a Swift file to sketch its layout, then compare ideas in the preview.</p><button id="welcome-open" class="button-quiet">Open a project</button><span class="welcome-note">A sketch, not a Swift build.</span></div>
     </div>
     <div id="dock">
-      <div class="tabs">
-        <button data-pane="debug" class="on">Debugger</button>
+      <div class="dock-top"><div class="tabs">
+        <button data-pane="debug" class="on">Sketch tree</button>
         <button data-pane="output">Output</button>
         <button data-pane="problems">Problems</button>
         <button data-pane="console">Console</button>
-      </div>
-      <pre id="dockpre"></pre>
+      </div><span class="dock-caption">PREVIEW INSPECTOR</span></div>
+      <pre id="dockpre">Open a file and run a preview to inspect its sketch tree.</pre>
     </div>
   </section>
   <aside id="stage">
-    <h2>PREVIEW</h2>
-    <select id="device"></select>
-    <div id="phone"><div id="screen"><div id="empty">Run to draw this file.</div></div></div>
+    <div class="preview-heading"><div><span class="eyebrow">CANVAS</span><h2>Preview</h2></div><span class="preview-status"><i></i> Approximate</span></div>
+    <label class="device-picker"><span>Device frame</span><select id="device"></select></label>
+    <div class="phone-stage"><div id="phone"><div id="screen"><div id="empty"><span class="empty-glyph">◉</span><strong>Your preview lives here</strong><span>Open a Swift file and run it to see the sketch.</span></div></div></div></div>
+    <div class="preview-footnote"><span class="tiny-dot"></span> Static layout preview <span>·</span> no Swift runtime</div>
   </aside>
 </main>
-<footer><span id="rootlabel"></span><span>approximate-web · not a Swift debugger</span></footer>
+<footer><div class="footer-project"><span class="tiny-dot"></span><span id="rootlabel">No project open</span></div><div class="footer-meta"><span>OpenSwift Studio</span><span>·</span><span>Local workspace</span></div></footer>
 `;
 
 const code = document.querySelector("#code");
 const list = document.querySelector("#list");
-const tab = document.querySelector("#tab");
+const filename = document.querySelector("#filename");
 const screen = document.querySelector("#screen");
 const dockpre = document.querySelector("#dockpre");
+const editorWelcome = document.querySelector("#editor-welcome");
+const filesEmpty = document.querySelector("#files-empty");
 const DEVICES = [
   ["iphone-11", "iPhone 11"],
   ["iphone-12", "iPhone 12"],
@@ -139,7 +146,12 @@ function addTree(node, depth) {
     const row = document.createElement("button");
     row.className = "folder";
     row.style.paddingLeft = (6 + depth * 14) + "px";
-    row.innerHTML = `<span class="chev">${open ? "▾" : "▸"}</span><span>${dir.name}</span>`;
+    const chev = document.createElement("span");
+    chev.className = "chev";
+    chev.textContent = open ? "▾" : "▸";
+    const name = document.createElement("span");
+    name.textContent = dir.name;
+    row.append(chev, name);
     row.onclick = () => {
       if (openFolders.has(key)) openFolders.delete(key);
       else openFolders.add(key);
@@ -153,7 +165,18 @@ function addTree(node, depth) {
     row.className = "file" + (file.path === current ? " on" : "");
     row.style.paddingLeft = (8 + (depth + 1) * 14) + "px";
     const dirty = file.path === current && code.value !== saved;
-    row.innerHTML = `<span class="ficon">S</span><span>${file.name}</span>${dirty ? '<em class="mark">M</em>' : ""}`;
+    const icon = document.createElement("span");
+    icon.className = "ficon";
+    icon.textContent = "S";
+    const name = document.createElement("span");
+    name.textContent = file.name;
+    row.append(icon, name);
+    if (dirty) {
+      const mark = document.createElement("em");
+      mark.className = "mark";
+      mark.textContent = "M";
+      row.appendChild(mark);
+    }
     row.onclick = () => openFile(file.path);
     list.appendChild(row);
   });
@@ -161,11 +184,14 @@ function addTree(node, depth) {
 function drawFiles() {
   list.innerHTML = "";
   addTree(treeFrom(files), 0);
+  document.querySelector("#filecount").textContent = String(files.length);
+  filesEmpty.hidden = files.length > 0;
 }
 async function refresh() {
   const info = await invoke("project_info");
   document.querySelector("#rootlabel").textContent = info.root || "No project";
   files = info.files || [];
+  editorWelcome.hidden = Boolean(current);
   if (!seeded) {
     files.forEach((p) => {
       const parts = p.split("/");
@@ -182,7 +208,10 @@ async function openFile(path) {
   code.value = text;
   paint(text, []);
   scheduleHighlight();
-  tab.textContent = path;
+  filename.textContent = path;
+  editorWelcome.hidden = true;
+  document.querySelector("#dirty").textContent = "Saved";
+  document.querySelector("#dirty").classList.remove("is-dirty");
   document.querySelector("#run").disabled = false;
   document.querySelector("#save").disabled = false;
   drawFiles();
@@ -206,7 +235,7 @@ async function run() {
   log("console", "rendered");
 }
 
-document.querySelector("#open").onclick = async () => {
+async function openProject() {
   const picked = await open({ directory: true, multiple: false });
   if (!picked) return;
   await invoke("set_project", { path: picked });
@@ -214,15 +243,22 @@ document.querySelector("#open").onclick = async () => {
   openFolders = new Set();
   current = "";
   code.value = "";
-  tab.textContent = "No file";
+  document.querySelector("#run").disabled = true;
+  document.querySelector("#save").disabled = true;
+  filename.textContent = "No file selected";
+  editorWelcome.hidden = false;
   await refresh();
   log("console", "project " + picked);
-};
+}
+document.querySelector("#open").onclick = openProject;
+document.querySelector("#welcome-open").onclick = openProject;
 document.querySelector("#run").onclick = () => run().catch((err) => log("console", String(err)));
 document.querySelector("#save").onclick = async () => {
   if (!current) return;
   await invoke("write_source", { path: current, text: code.value });
   saved = code.value;
+  document.querySelector("#dirty").textContent = "Saved";
+  document.querySelector("#dirty").classList.remove("is-dirty");
   drawFiles();
   log("console", "saved " + current);
 };
@@ -235,7 +271,12 @@ document.querySelectorAll("#dock .tabs button").forEach((b) => {
     show();
   };
 });
-code.addEventListener("input", () => { scheduleHighlight(); drawFiles(); });
+code.addEventListener("input", () => {
+  scheduleHighlight();
+  document.querySelector("#dirty").textContent = code.value === saved ? "Saved" : "Unsaved changes";
+  document.querySelector("#dirty").classList.toggle("is-dirty", code.value !== saved);
+  drawFiles();
+});
 deviceSelect.addEventListener("change", () => { if (code.value) run().catch((err) => log("console", String(err))); });
 code.addEventListener("scroll", () => {
   const hi = document.querySelector("#hi");
@@ -245,6 +286,12 @@ code.addEventListener("scroll", () => {
 code.addEventListener("keydown", (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); run(); }
   if ((e.metaKey || e.ctrlKey) && e.key === "s") { e.preventDefault(); document.querySelector("#save").click(); }
+});
+document.addEventListener("keydown", (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+    e.preventDefault();
+    document.querySelector("#search").focus();
+  }
 });
 show();
 refresh().catch((err) => log("console", String(err)));

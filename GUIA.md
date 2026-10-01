@@ -1,84 +1,117 @@
-# OpenSwift
+# Guía práctica de OpenSwift
 
-## El comando
+OpenSwift dibuja un bosquejo de SwiftUI para revisar una pantalla y conversar sobre su composición. No compila Swift, no ejecuta la app y no reemplaza la preview de Xcode.
 
-Desde la carpeta del proyecto en el que quieres trabajar, no desde OpenSwift:
+## Requisitos
 
-```bash
-PYTHONPATH="/home/danny/Development/ISyCo Git/OpenSwift" \
-  python3 -m openswift focus "/home/danny/Development/ISyCo Git/OpenSwift/examples/hello.swift" \
-  --allow Theme.swift --allow ModelPicker.swift \
-  --intent "hacer el panel menos apretado"
-```
+- Python 3.10 o posterior para el CLI y el Studio web local.
+- Bun, Rust y las dependencias nativas de Tauri para desarrollar la app de escritorio.
 
-Salida real:
-
-```text
-/tmp/openswift-demo/.ui-session
-```
-
-Esa ruta era la carpeta donde se corrió. En tu proyecto el archivo queda en `./.ui-session`.
-
-## La regla
-
-Durante esa sesión se toca el archivo de `target.json` y los de `allowed`. El resto se lee y no se edita. El dibujo no es el iPhone: es un bosquejo. Si una vista no se conoce, sale una caja con su nombre.
-
-## Los otros comandos
+Los comandos siguientes se ejecutan desde la carpeta del proyecto que vas a editar. Define la ruta al clon de OpenSwift una vez:
 
 ```bash
-PYTHONPATH="/home/danny/Development/ISyCo Git/OpenSwift" python3 -m openswift status
+export OPENSWIFT_DIR="/ruta/al/clon/OpenSwift"
+export PYTHONPATH="$OPENSWIFT_DIR"
 ```
 
-```text
-target: /home/danny/Development/ISyCo Git/OpenSwift/examples/hello.swift
-provider: approximate-web
-allowed: Theme.swift, ModelPicker.swift
-read only: everything except target and allowed
-iteration: 0
-session: /tmp/openswift-demo/.ui-session
-intent: hacer el panel menos apretado
-```
+Por ejemplo, si estás dentro del mismo clon:
 
 ```bash
-PYTHONPATH="/home/danny/Development/ISyCo Git/OpenSwift" python3 -m openswift render
+export OPENSWIFT_DIR="$PWD"
+export PYTHONPATH="$OPENSWIFT_DIR"
 ```
 
-La primera vez imprime `.../iterations/001.png`. La segunda, `002.png`. El mismo dibujo también queda en `.ui-session/preview.png`, con su sha256 al lado.
+## 1. Abrir una sesión
 
-## Cómo leerlo
+Elige el archivo principal de la vista. Usa `--allow` para indicar dependencias que también se pueden guardar durante esta sesión:
 
-| Campo | Qué es |
+```bash
+python3 -m openswift focus Sources/ContentView.swift \
+  --allow Sources/Theme.swift \
+  --intent "darle más aire al panel"
+```
+
+Esto crea `.ui-session/` en el directorio actual. `target` es la vista elegida; `allowed` contiene los otros archivos autorizados.
+
+## 2. Dibujar y revisar
+
+```bash
+python3 -m openswift render --device iphone-16-pro
+python3 -m openswift status
+```
+
+La primera preview aparece como `.ui-session/iterations/001.png`. Los renders posteriores crean `002.png`, `003.png` y así sucesivamente. La imagen actual, el SVG y los hashes quedan también en `.ui-session/`.
+
+Para inspeccionar un archivo sin abrir una sesión:
+
+```bash
+python3 -m openswift draw Sources/ContentView.swift \
+  --device iphone-14 --output /tmp/content-view.svg
+```
+
+## 3. Editar en Studio
+
+### App de escritorio
+
+Desde la raíz del clon de OpenSwift:
+
+```bash
+cd "$OPENSWIFT_DIR/app"
+bun install
+bun run tauri dev
+```
+
+Pulsa **Open** para elegir el proyecto y selecciona un archivo Swift. **Run** dibuja el sketch, **Save** guarda el archivo abierto, `Ctrl+Enter` vuelve a dibujar y `Ctrl+S` guarda.
+
+Los paneles de abajo muestran el árbol del sketch, el resultado, los avisos y los eventos. “Debugger” es el nombre del panel: no hay ejecución de Swift ni call stack.
+
+Para compilar la app, ejecuta `bun run tauri build` desde `app/`. Linux genera AppImage y paquetes como `.deb`/`.rpm`; en Windows el icono se integra al `.exe` mediante `icon.ico`.
+
+### Studio web local
+
+Desde cualquier directorio:
+
+```bash
+PYTHONPATH="$OPENSWIFT_DIR" python3 -m openswift studio \
+  "/ruta/al/proyecto" --port 8765
+```
+
+Abre `http://127.0.0.1:8765` o `http://localhost:8765`. El Studio web se restringe a la máquina local. No lo expongas mediante un proxy o una interfaz de red.
+
+## Qué significa el límite de edición
+
+Mientras exista `.ui-session/target.json`, Studio permite guardar únicamente `target` y las rutas incluidas en `allowed`. El resto del proyecto sigue disponible para lectura.
+
+Ese límite protege los guardados realizados desde Studio. No es un sandbox del sistema operativo: un agente o proceso con acceso directo al disco puede editar cualquier archivo. Si ya no quieres que Studio aplique la sesión, mueve o elimina `target.json`; los renders y hashes restantes se conservan.
+
+## Leer `status`
+
+| Campo | Significado |
 |---|---|
-| `target` | La única pantalla de esta mesa |
-| `allowed` | Los archivos que sí se pueden cambiar junto con ella |
-| `iteration` | Cuántos dibujos se han guardado |
-| `001.png`, `002.png` | Cada intento, para poder decir "esa, pero con el botón de la otra" |
-| `provider: approximate-web` | El bosquejo local. `miniswift` y `xcode-preview` están nombrados y todavía no dibujan |
+| `target` | Archivo principal de esta sesión |
+| `allowed` | Archivos adicionales permitidos al guardar desde Studio |
+| `provider` | Motor usado para producir la preview |
+| `iteration` | Número de previews guardadas |
+| `intent` | Cambio que quieres explorar |
 
-## La ventana
+`approximate-web` es el único provider conectado. `miniswift` y `xcode-preview` están reservados para una integración futura.
 
-Es una app de Tauri, como iloader. No compila Swift: Run pide el bosquejo al mismo lector de siempre.
+## Qué esperar del bosquejo
 
-```bash
-"/home/danny/Development/ISyCo Git/OpenSwift/app/src-tauri/target/release/openswift"
-```
+El parser reconoce un subconjunto de SwiftUI: stacks, texto, botones, algunos controles, contenedores y modificadores sencillos. No interpreta el programa Swift completo. Vistas propias o APIs no compatibles pueden salir como cajas etiquetadas o aparecer en **Problems**.
 
-Ese binario se compiló el 22 de septiembre de 2026. El paquete está en `app/src-tauri/target/release/bundle/deb/OpenSwift_0.1.0_amd64.deb`.
+Usa la imagen para hablar de estructura y proporciones. Confirma el comportamiento real en el entorno SwiftUI de destino.
 
-Open abre una carpeta. Eliges un `.swift`. Run dibuja el teléfono. Abajo: Debugger (el árbol del bosquejo, no un depurador de Swift), Output, Problems y Console. Ctrl+Enter vuelve a dibujar. Ctrl+S guarda el archivo.
+## Problemas comunes
 
-## Trampas
+- **`no .ui-session here`**: ejecuta `focus` primero desde la carpeta del proyecto.
+- **Un guardado responde `file is read-only in active .ui-session`**: el archivo no es el `target` ni está en `allowed`; cierra la sesión o crea otra con el archivo autorizado.
+- **No aparecen colores de sintaxis**: el lexer es opcional. Para compilarlo, ejecuta `./tools/build-lex.sh` desde la raíz de OpenSwift.
+- **La preview se ve distinta de iOS**: es una aproximación estática, no el renderer de Apple.
+- **No se conecta Studio desde otra computadora**: el servidor sólo acepta el origen local por diseño.
 
-- Sin `focus` previo, `render` dice `no .ui-session here`.
-- Pedir `--provider miniswift` se niega. No hay compilador detrás.
-- El PNG es un mapa de píxeles del bosquejo, no una captura de Xcode.
-- `studio` solo le contesta a su propia página, abierta como `http://127.0.0.1:<puerto>` o `http://localhost:<puerto>`. Con otro nombre (la IP de tu red, o un dominio que apunte a tu máquina) responde 403. Es a propósito: el studio escribe archivos, y antes de este cambio cualquier página web que tuvieras abierta en el navegador podía guardarte archivos en el proyecto. Probado el 24 de septiembre de 2026:
+## Referencias
 
-  ```console
-  $ curl -H 'Host: 192.168.1.50:8798' http://127.0.0.1:8798/api/files
-  {"error": "unexpected Host"}
-
-  $ curl -X POST -H 'Content-Type: text/plain' -H 'Origin: https://evil.example' \
-      --data '{"path":"pwned.txt","text":"x"}' http://127.0.0.1:8799/api/save
-  {"error": "cross-origin request"}
-  ```
+- [README](README.md)
+- [Aviso de terceros](NOTICE.md)
+- [Licencia](LICENSE)

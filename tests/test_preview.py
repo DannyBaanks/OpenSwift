@@ -49,6 +49,11 @@ class PreviewTest(unittest.TestCase):
         self.assertIn("<svg", svg)
         self.assertNotIn("no SwiftUI view call found", svg)
 
+    def test_swift_text_is_escaped_before_entering_svg(self) -> None:
+        svg = render_svg(parse_swiftui('var body: some View { Text("<tspan>AUDIT</tspan> & more") }'))
+        self.assertNotIn("<tspan>AUDIT</tspan>", svg)
+        self.assertIn("&lt;tspan&gt;AUDIT&lt;/tspan&gt; &amp; more", svg)
+
 
 if __name__ == "__main__":
     unittest.main()

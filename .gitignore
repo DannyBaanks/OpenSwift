@@ -2,6 +2,7 @@ __pycache__/
 *.pyc
 .venv/
 *.svg
+!app/src-tauri/icons/openswift-icon.svg
 app/node_modules/
 app/dist/
 app/src-tauri/target/

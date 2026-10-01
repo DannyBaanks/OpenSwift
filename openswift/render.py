@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 from dataclasses import dataclass
 
 from openswift.devices import get_device, NotchType
@@ -184,12 +185,9 @@ def _home_indicator(device, x: float, y: float, screen_w: int, screen_h: int) ->
 
 
 def _esc(text: str) -> str:
-    return (
-        text.replace("&", "&")
-        .replace("<", "<")
-        .replace(">", ">")
-        .replace('"', '"')
-    )
+    return html.escape(text, quote=True)
+
+
 SCREEN_W = 390
 SCREEN_H = 780
 BEZEL = 28

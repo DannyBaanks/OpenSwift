@@ -28,12 +28,15 @@ def focus(target: Path, allowed: list[str], intent: str, provider: str, cwd: Pat
     target = target.resolve()
     if not target.is_file():
         raise FileNotFoundError(target)
+    writable_paths = [str(target)]
+    writable_paths.extend(str((target.parent / item).resolve()) for item in allowed)
     root = session_root(cwd)
     iterations = root / "iterations"
     iterations.mkdir(parents=True, exist_ok=True)
     record = {
         "target": str(target),
         "allowed": allowed,
+        "writable_paths": writable_paths,
         "provider": provider,
         "read_only": "everything except target and allowed",
         "created": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),

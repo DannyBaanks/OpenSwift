@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="docs/img/iphone16pro.png" alt="OpenSwift preview on an iPhone 16 Pro" width="100%">
-</p>
-
 <h1 align="center">OpenSwift</h1>
 
 <p align="center">
@@ -34,13 +30,6 @@ La pieza central es la sesión `.ui-session`: fija una vista, guarda la intenci�
   <img src="docs/img/openswift-studio.png" alt="OpenSwift Studio ejecutándose como app de escritorio" width="100%">
 </p>
 
-<p align="center">
-  <img src="docs/img/iphone11.png" alt="Preview con notch clásico, iPhone 11" width="28%">
-  &nbsp;
-  <img src="docs/img/iphone14.png" alt="Preview con notch reducido, iPhone 14" width="28%">
-  &nbsp;
-  <img src="docs/img/iphone16pro.png" alt="Preview con Dynamic Island, iPhone 16 Pro" width="28%">
-</p>
 
 ## Empieza en un minuto
 

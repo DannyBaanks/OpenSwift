@@ -8,11 +8,13 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from openswift.devices import DEVICES, ORIENTATIONS, expand_devices
 from openswift.parse import ParseError, ViewNode, parse_swiftui
-from openswift.render import render_svg
+from openswift.render import APPEARANCES, FRAMES, render_svg, sheet_svg
 
 PAGE = Path(__file__).with_name("studio.html")
-KNOWN = {"VStack", "HStack", "ZStack", "Text", "Button", "Spacer", "Divider", "TextField", "SecureField", "Image", "Label"}
+KNOWN = {"VStack", "HStack", "ZStack", "Text", "Button", "Spacer", "Divider", "TextField", "SecureField", "Image", "Label", "Toggle",
+         "Group", "Form", "Section", "List", "ScrollView", "NavigationStack", "GroupBox"}
 
 
 def _tree(node: ViewNode) -> dict:
@@ -46,7 +48,7 @@ def highlight(source: str) -> list:
         return []
 
 
-def sketch(source: str, device: str = "iphone-14") -> dict:
+def sketch(source: str, device: str = "iphone-14", appearance: str = "dark", frame: str = "black", orientation: str = "portrait") -> dict:
     try:
         root = parse_swiftui(source)
     except ParseError as exc:
@@ -56,11 +58,14 @@ def sketch(source: str, device: str = "iphone-14") -> dict:
     return {
         "ok": True,
         "error": "",
-        "svg": render_svg(root, device),
+        "svg": render_svg(root, device, appearance, frame, orientation),
         "problems": problems,
         "tree": _tree(root),
         "tokens": highlight(source),
         "device": device,
+        "appearance": appearance,
+        "frame": frame,
+        "orientation": orientation,
     }
 
 
@@ -84,6 +89,37 @@ def _session_allows_write(root: Path, path: Path) -> bool:
         writable.extend(str((target.parent / item).resolve()) for item in record.get("allowed", []))
     resolved = path.resolve()
     return any(resolved == Path(item).resolve() for item in writable)
+
+
+def sheet(source: str, devices: str, appearance: str = "dark", frame: str = "black", orientation: str = "portrait") -> dict:
+    """The same sketch on several devices at once, each laid out for its own screen."""
+    try:
+        root = parse_swiftui(source)
+        ids = expand_devices(devices)
+    except (ParseError, ValueError) as exc:
+        return {"ok": False, "error": str(exc), "svg": ""}
+    return {"ok": True, "error": "", "svg": sheet_svg(root, ids, appearance, frame, orientation), "devices": ids}
+
+
+def _session_info(root: Path) -> dict | None:
+    """A small, read-only summary of the active .ui-session for the panel."""
+    session = root / ".ui-session"
+    record_path = session / "target.json"
+    if not record_path.is_file():
+        return None
+    try:
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    intent = session / "intent.md"
+    return {
+        "target": record.get("target", ""),
+        "allowed": record.get("allowed") or [],
+        "provider": record.get("provider", ""),
+        "iteration": record.get("iteration", 0),
+        "sha256": record.get("preview_sha256", ""),
+        "intent": intent.read_text(encoding="utf-8").strip() if intent.is_file() else "",
+    }
 
 
 def _files(root: Path) -> list[str]:
@@ -166,6 +202,17 @@ def make_server(project: Path, host: str = "127.0.0.1", port: int = 8765) -> Thr
             if url.path == "/api/files":
                 self._json(200, {"root": str(project), "files": _files(project)})
                 return
+            if url.path == "/api/devices":
+                self._json(200, {
+                    "devices": [{"id": d.id, "name": d.name} for d in DEVICES.values()],
+                    "appearances": list(APPEARANCES),
+                    "frames": list(FRAMES),
+                    "orientations": list(ORIENTATIONS),
+                })
+                return
+            if url.path == "/api/session":
+                self._json(200, {"session": _session_info(project)})
+                return
             if url.path == "/api/file":
                 rel = parse_qs(url.query).get("path", [""])[0]
                 try:
@@ -187,7 +234,13 @@ def make_server(project: Path, host: str = "127.0.0.1", port: int = 8765) -> Thr
                 return
             if url.path == "/api/render":
                 device = data.get("device", "iphone-14")
-                self._json(200, sketch(data.get("source", ""), device))
+                self._json(200, sketch(data.get("source", ""), device, data.get("appearance", "dark"), data.get("frame", "black"), data.get("orientation", "portrait")))
+                return
+            if url.path == "/api/sheet":
+                self._json(200, sheet(
+                    data.get("source", ""), data.get("devices", "phones"), data.get("appearance", "dark"),
+                    data.get("frame", "black"), data.get("orientation", "portrait"),
+                ))
                 return
             if url.path == "/api/save":
                 try:

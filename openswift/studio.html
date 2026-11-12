@@ -13,40 +13,69 @@
     --accent: #111;
     --orange: #e36a1e;
   }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17140f; --panel: #1f1b15; --line: #342e25; --ink: #f1ece2; --muted: #9a9082; --accent: #f1ece2;
+      --surface: #25201a; --side: #1b1813; --code: #1a1713; --codeink: #eadfcf; --dock: #1b1813; --dockink: #c9bfae;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17140f; --panel: #1f1b15; --line: #342e25; --ink: #f1ece2; --muted: #9a9082; --accent: #f1ece2;
+    --surface: #25201a; --side: #1b1813; --code: #1a1713; --codeink: #eadfcf; --dock: #1b1813; --dockink: #c9bfae;
+  }
+  :root { --surface: #fff; --side: #faf7f2; --code: #fff; --codeink: #241e18; --dock: #fbf8f3; --dockink: #4d463e; }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
     font: 13px/1.4 ui-sans-serif, system-ui, sans-serif; }
   body { display: grid; grid-template-rows: 48px 1fr 28px; }
   header { display: flex; align-items: center; gap: 8px; padding: 0 12px; border-bottom: 1px solid var(--line); }
-  header strong { margin-right: 8px; }
-  button, select { border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 6px 10px; font: inherit; cursor: pointer; }
-  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  header strong { margin-right: 8px; white-space: nowrap; }
+  header { overflow: hidden; }
+  button, select { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 8px; padding: 6px 10px; font: inherit; cursor: pointer; }
+  button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
   button:disabled { opacity: 0.45; cursor: default; }
-  #search { margin-left: auto; width: min(420px, 40vw); border: 1px solid var(--line); border-radius: 999px; padding: 7px 12px; background: #fff; }
+  #search { margin-left: auto; width: min(420px, 40vw); border: 1px solid var(--line); border-radius: 999px; padding: 7px 12px; background: var(--surface); color: var(--ink); }
   main { display: grid; grid-template-columns: 48px 220px 1fr 340px; min-height: 0; }
   nav { border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 6px; padding-top: 8px; }
   nav button { width: 34px; height: 34px; padding: 0; }
-  nav button.on { background: #fff; border-color: #cfc6b8; }
-  #side { border-right: 1px solid var(--line); overflow: auto; padding: 8px; background: #faf7f2; }
+  nav button.on { background: var(--surface); border-color: #cfc6b8; }
+  #side { border-right: 1px solid var(--line); overflow: auto; padding: 8px; background: var(--side); }
   #side h2 { font-size: 11px; letter-spacing: 0.08em; color: var(--muted); margin: 8px 4px; }
   .file { display: block; width: 100%; text-align: left; border: 0; background: transparent; border-radius: 6px; padding: 5px 6px; }
-  .file.on { background: #fff; }
-  #editorwrap { display: grid; grid-template-rows: 36px 1fr 180px; min-width: 0; min-height: 0; }
+  .file { color: var(--ink); }
+  .file.on { background: var(--surface); }
+  .file.dirty::after { content: " •"; color: var(--orange); }
+  #editorwrap { display: grid; grid-template-rows: 36px minmax(0, 1fr) 180px; min-width: 0; min-height: 0; }
   #tab { display: flex; align-items: center; gap: 8px; padding: 0 10px; background: var(--panel); border-bottom: 1px solid var(--line); }
-  #code { width: 100%; height: 100%; border: 0; resize: none; padding: 12px 14px; font: 13px/1.5 ui-monospace, monospace; background: #fff; color: #241e18; }
-  #dock { border-top: 1px solid var(--line); background: #fbf8f3; display: grid; grid-template-rows: 32px 1fr; min-height: 0; }
+  #codewrap { position: relative; min-height: 0; background: var(--code); }
+  #code, #hl { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; border: 0; padding: 12px 14px; font: 13px/1.5 ui-monospace, monospace; tab-size: 4; white-space: pre; overflow: auto; }
+  #code { resize: none; background: transparent; color: transparent; caret-color: var(--codeink); z-index: 1; }
+  #code::selection { background: rgba(227,106,30,.3); color: transparent; }
+  #code::placeholder { color: var(--muted); }
+  #hl { color: var(--codeink); pointer-events: none; overflow: hidden; }
+  #hl .k { color: #c4478f; } #hl .t { color: #2f7bb5; } #hl .s { color: #c0532d; } #hl .c { color: #8a8175; font-style: italic; } #hl .n { color: #7a5fc7; } #hl .m { color: #2f8f6b; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #hl .k { color: #ff7ab2; } :root:not([data-theme="light"]) #hl .t { color: #6bb7ff; } :root:not([data-theme="light"]) #hl .s { color: #ff8a65; } :root:not([data-theme="light"]) #hl .n { color: #b79cff; } :root:not([data-theme="light"]) #hl .m { color: #5dd6a2; } }
+  :root[data-theme="dark"] #hl .k { color: #ff7ab2; } :root[data-theme="dark"] #hl .t { color: #6bb7ff; } :root[data-theme="dark"] #hl .s { color: #ff8a65; } :root[data-theme="dark"] #hl .n { color: #b79cff; } :root[data-theme="dark"] #hl .m { color: #5dd6a2; }
+  #dock { border-top: 1px solid var(--line); background: var(--dock); display: grid; grid-template-rows: 32px 1fr; min-height: 0; }
   #dock nav { flex-direction: row; border: 0; padding: 0 8px; align-items: end; gap: 4px; }
   #dock nav button { width: auto; height: auto; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; }
   #dock nav button.on { border-bottom-color: var(--orange); }
-  #dockpre { margin: 0; padding: 8px 12px; overflow: auto; font: 12px/1.45 ui-monospace, monospace; color: #4d463e; white-space: pre-wrap; }
+  #dockpre { margin: 0; padding: 8px 12px; overflow: auto; font: 12px/1.45 ui-monospace, monospace; color: var(--dockink); white-space: pre-wrap; }
   #stage { border-left: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px; min-width: 0; }
   #stage .tools { display: flex; gap: 6px; }
-  #phone { width: 230px; height: 470px; border: 8px solid #111; border-radius: 32px; background: #fff; overflow: hidden; box-shadow: 0 16px 40px rgba(0,0,0,.12); }
-  #phone .bar { height: 22px; background: #111; }
-  #phone .screen { height: calc(100% - 22px); overflow: auto; background: #000; }
+  #phone { width: 290px; /* landscape and iPad scale to the same width */ max-width: 100%; transition: width .15s ease; filter: drop-shadow(0 18px 28px rgba(0,0,0,.28)); }
   #phone svg { width: 100%; height: auto; display: block; }
+  #stage { overflow: auto; background: radial-gradient(circle at 50% 0%, var(--surface), var(--bg) 70%); }
+  #stage .tools { flex-wrap: wrap; justify-content: center; }
   footer { display: flex; justify-content: space-between; align-items: center; padding: 0 12px; color: var(--muted); border-top: 1px solid var(--line); font-size: 12px; }
   #empty { color: var(--muted); padding: 24px; }
+  .badge { display: inline-block; min-width: 16px; padding: 0 5px; margin-left: 4px; border-radius: 999px; background: var(--orange); color: #fff; font-size: 11px; line-height: 16px; text-align: center; }
+  .badge[hidden] { display: none; }
+  .toggle { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; }
+  #devicewrap, #devicewrap2, #devicewrap3, #devicewrap4, #devicewrap5 { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+  #status { color: var(--muted); }
+  #status.err { color: #d23b2e; }
+  @media (max-width: 1000px) { main { grid-template-columns: 48px 160px 1fr 280px; } #search { display: none; } }
 </style>
 </head>
 <body>
@@ -54,6 +83,13 @@
   <strong>OpenSwift Studio</strong>
   <button id="run" class="primary" disabled>Run</button>
   <button id="save" disabled>Save</button>
+  <label class="toggle" title="Redraw while you type"><input type="checkbox" id="live"> Live</label>
+  <label id="devicewrap">Device <select id="device"></select></label>
+  <label id="devicewrap2">Look <select id="appearance"><option value="dark">Dark</option><option value="light">Light</option></select></label>
+  <label id="devicewrap5" title="Show the same screen on several devices at once">View <select id="view"><option value="">Single</option><option value="iphone-12,iphone-16-pro,iphone-16-pro-max">3 phones</option><option value="iphone-16-pro,ipad-air-11">Phone + iPad</option><option value="phones">All phones</option><option value="all">Every device</option></select></label>
+  <label id="devicewrap4">Turn <select id="orientation"><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></label>
+  <label id="devicewrap3">Case <select id="frame"></select></label>
+  <button id="theme" title="Toggle light/dark">Theme</button>
   <input id="search" placeholder="Filter files in this project" />
 </header>
 <main>
@@ -63,12 +99,13 @@
   <aside id="side"><h2>PROJECT</h2><div id="files"></div></aside>
   <section id="editorwrap">
     <div id="tab">No file</div>
-    <textarea id="code" spellcheck="false" placeholder="Open a .swift file. Run draws the sketch. It does not compile."></textarea>
+    <div id="codewrap"><pre id="hl" aria-hidden="true"></pre><textarea id="code" spellcheck="false" wrap="off" placeholder="Open a .swift file. Run draws the sketch. It does not compile."></textarea></div>
     <div id="dock">
       <nav>
         <button data-pane="debug" class="on">Debugger</button>
         <button data-pane="output">Output</button>
-        <button data-pane="problems">Problems</button>
+        <button data-pane="problems">Problems<span class="badge" id="pbadge" hidden>0</span></button>
+        <button data-pane="session">Session</button>
         <button data-pane="console">Console</button>
       </nav>
       <pre id="dockpre"></pre>
@@ -76,28 +113,86 @@
   </section>
   <aside id="stage">
     <div class="tools">
-      <button data-zoom="0.7">50%</button>
-      <button data-zoom="0.85">75%</button>
-      <button data-zoom="1">100%</button>
+      <button id="dlsvg" title="Download the sketch as SVG">SVG ↓</button>
+      <button id="dlpng" title="Download the sketch as PNG">PNG ↓</button>
+      <button data-zoom="0.6">Small</button>
+      <button data-zoom="0.85">Medium</button>
+      <button data-zoom="1.1">Large</button>
     </div>
-    <div id="phone"><div class="bar"></div><div class="screen" id="screen"><div id="empty">Run to draw this file.</div></div></div>
+    <div id="phone"><div id="screen"><div id="empty">Run to draw this file.</div></div></div>
   </aside>
 </main>
 <footer>
   <span id="project"></span>
+  <span id="status">ready</span>
   <span>approximate-web · not a Swift debugger</span>
 </footer>
 <script>
 const code = document.querySelector("#code");
+const hl = document.querySelector("#hl");
+const SWIFT_KEYWORDS = new Set("import struct class enum protocol extension func var let some any if else guard switch case default for in while return init self Self static private public internal fileprivate final override mutating throws try await async true false nil @State @Binding @Environment @Observable @MainActor".split(" "));
+const SWIFT_TOKEN = /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|("(?:[^"\\\n]|\\.)*")|(@?[A-Za-z_][A-Za-z0-9_]*)|(\.[A-Za-z_][A-Za-z0-9_]*)|(\b\d+(?:\.\d+)?\b)/g;
+function esc(t) { return t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+function paint() {
+  let out = "", last = 0, m;
+  const text = code.value;
+  SWIFT_TOKEN.lastIndex = 0;
+  while ((m = SWIFT_TOKEN.exec(text))) {
+    out += esc(text.slice(last, m.index));
+    const [tok, comment, str, word, member, num] = m;
+    let cls = "";
+    if (comment) cls = "c";
+    else if (str) cls = "s";
+    else if (word) cls = SWIFT_KEYWORDS.has(word) ? "k" : /^[A-Z]/.test(word) ? "t" : "";
+    else if (member) cls = "m";
+    else if (num) cls = "n";
+    out += cls ? '<span class="' + cls + '">' + esc(tok) + "</span>" : esc(tok);
+    last = m.index + tok.length;
+  }
+  hl.innerHTML = out + esc(text.slice(last)) + "\n";
+  hl.scrollTop = code.scrollTop; hl.scrollLeft = code.scrollLeft;
+}
+code.addEventListener("scroll", () => { hl.scrollTop = code.scrollTop; hl.scrollLeft = code.scrollLeft; });
 const filesEl = document.querySelector("#files");
 const tab = document.querySelector("#tab");
 const screen = document.querySelector("#screen");
 const dockpre = document.querySelector("#dockpre");
 const search = document.querySelector("#search");
 let current = "";
+let saved = "";
+let liveTimer = null;
+const statusEl = document.querySelector("#status");
+const deviceSelect = document.querySelector("#device");
+const root = document.documentElement;
+const appearanceSelect = document.querySelector("#appearance");
+const frameSelect = document.querySelector("#frame");
+const orientationSelect = document.querySelector("#orientation");
+const viewSelect = document.querySelector("#view");
+let lastSvg = "";
+function pref(key, fallback) { try { return localStorage.getItem("openswift-" + key) || fallback; } catch (e) { return fallback; } }
+function savePref(key, value) { try { localStorage.setItem("openswift-" + key, value); } catch (e) {} }
+function download(name, blob) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function setStatus(text, bad) { statusEl.textContent = text; statusEl.classList.toggle("err", !!bad); }
+function isDirty() { return !!current && code.value !== saved; }
+function markDirty() {
+  tab.textContent = current ? current + (isDirty() ? " •" : "") : "No file";
+  drawFiles();
+}
+try { const t = localStorage.getItem("openswift-theme"); if (t) root.dataset.theme = t; } catch (e) {}
+document.querySelector("#theme").onclick = () => {
+  const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  root.dataset.theme = dark ? "light" : "dark";
+  try { localStorage.setItem("openswift-theme", root.dataset.theme); } catch (e) {}
+};
 let files = [];
 let pane = "debug";
-const panes = { debug: "No Swift runtime.\nOpen a file and press Run.\nThe tree of the sketch shows up here. Breakpoints are not executed.", output: "", problems: "", console: "" };
+const panes = { session: "No active .ui-session in this project.\nRun `openswift focus <file> --intent \"...\"` to lock the table to one view.", debug: "No Swift runtime.\nOpen a file and press Run.\nThe tree of the sketch shows up here. Breakpoints are not executed.", output: "", problems: "", console: "" };
 
 async function loadFiles() {
   const res = await fetch("/api/files");
@@ -111,18 +206,21 @@ function drawFiles() {
   filesEl.innerHTML = "";
   files.filter(f => f.toLowerCase().includes(q)).forEach(f => {
     const b = document.createElement("button");
-    b.className = "file" + (f === current ? " on" : "");
+    b.className = "file" + (f === current ? " on" : "") + (f === current && isDirty() ? " dirty" : "");
     b.textContent = f;
     b.onclick = () => openFile(f);
     filesEl.appendChild(b);
   });
 }
 async function openFile(path) {
+  if (isDirty() && !confirm("Discard unsaved changes in " + current + "?")) return;
   const res = await fetch("/api/file?path=" + encodeURIComponent(path));
   const data = await res.json();
   if (data.error) { log("console", data.error); return; }
   current = path;
   code.value = data.text;
+  paint();
+  saved = data.text;
   tab.textContent = path;
   document.querySelector("#run").disabled = false;
   document.querySelector("#save").disabled = false;
@@ -130,9 +228,22 @@ async function openFile(path) {
   log("console", "opened " + path);
 }
 async function run() {
-  const res = await fetch("/api/render", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ source: code.value }) });
+  if (viewSelect.value) {
+    const sheetRes = await fetch("/api/sheet", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ source: code.value, devices: viewSelect.value, appearance: appearanceSelect.value, frame: frameSelect.value, orientation: orientationSelect.value }) });
+    const sheetData = await sheetRes.json();
+    if (!sheetData.ok) { setStatus("could not draw: " + sheetData.error, true); return; }
+    screen.innerHTML = sheetData.svg;
+    lastSvg = sheetData.svg;
+    document.querySelector("#phone").style.width = "100%";
+    setStatus("drawn on " + sheetData.devices.length + " devices");
+    return;
+  }
+  document.querySelector("#phone").style.width = "";
+  const res = await fetch("/api/render", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ source: code.value, device: deviceSelect.value, appearance: appearanceSelect.value, frame: frameSelect.value, orientation: orientationSelect.value }) });
   const data = await res.json();
   if (!data.ok) {
+    setBadge(1);
+    setStatus("could not draw: " + data.error, true);
     panes.problems = data.error;
     panes.debug = data.error;
     showPane();
@@ -140,11 +251,59 @@ async function run() {
     return;
   }
   screen.innerHTML = data.svg;
+  lastSvg = data.svg;
   panes.debug = "Sketch tree (not a call stack)\n\n" + fmt(data.tree, 0);
+  setBadge(data.problems.length);
+  setStatus("drawn " + new Date().toLocaleTimeString());
   panes.problems = data.problems.length ? data.problems.join("\n") : "No problems in the known views.";
   panes.output = "rendered " + current + "\nprovider approximate-web";
   showPane();
   log("console", "rendered " + (current || "buffer"));
+}
+function setBadge(n) {
+  const b = document.querySelector("#pbadge");
+  b.textContent = n;
+  b.hidden = !n;
+}
+async function loadDevices() {
+  try {
+    const data = await (await fetch("/api/devices")).json();
+    data.devices.forEach((d) => {
+      const opt = document.createElement("option");
+      opt.value = d.id;
+      opt.textContent = d.name;
+      deviceSelect.appendChild(opt);
+    });
+    deviceSelect.value = pref("device", "iphone-14");
+    data.frames.forEach((f) => {
+      const opt = document.createElement("option");
+      opt.value = f;
+      opt.textContent = f === "none" ? "No frame" : f[0].toUpperCase() + f.slice(1);
+      frameSelect.appendChild(opt);
+    });
+    frameSelect.value = pref("frame", "black");
+    appearanceSelect.value = pref("appearance", "dark");
+    orientationSelect.value = pref("orientation", "portrait");
+    viewSelect.value = pref("view", "");
+    if (viewSelect.value !== pref("view", "")) viewSelect.value = "";
+  } catch (e) { /* the picker stays empty; render falls back to the default frame */ }
+}
+async function loadSession() {
+  try {
+    const { session } = await (await fetch("/api/session")).json();
+    if (!session) return;
+    panes.session = [
+      "target:    " + session.target,
+      "allowed:   " + (session.allowed.join(", ") || "(none)"),
+      "provider:  " + session.provider,
+      "iteration: " + session.iteration,
+      "preview:   " + (session.sha256 || "(none yet)"),
+      "intent:    " + (session.intent || "(none)"),
+      "",
+      "Saves outside target and allowed are refused while this session exists.",
+    ].join("\n");
+    showPane();
+  } catch (e) {}
 }
 function fmt(node, depth) {
   if (!node) return "";
@@ -168,19 +327,54 @@ document.querySelector("#save").onclick = async () => {
   if (!current) return;
   const res = await fetch("/api/save", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ path: current, text: code.value }) });
   const data = await res.json();
+  if (data.ok) { saved = code.value; markDirty(); setStatus("saved " + current); }
+  else setStatus(data.error, true);
   log("console", data.ok ? "saved " + current : data.error);
 };
 search.oninput = drawFiles;
 document.querySelectorAll("[data-zoom]").forEach(b => b.onclick = () => {
-  document.querySelector("#phone").style.transform = "scale(" + b.dataset.zoom + ")";
-  document.querySelector("#phone").style.transformOrigin = "top center";
+  document.querySelector("#phone").style.width = Math.round(290 * b.dataset.zoom / 0.85) + "px";
 });
+code.addEventListener("input", () => {
+  paint();
+  markDirty();
+  if (document.querySelector("#live").checked) {
+    clearTimeout(liveTimer);
+    liveTimer = setTimeout(() => run().catch((err) => setStatus(String(err), true)), 400);
+  }
+});
+[[deviceSelect, "device"], [appearanceSelect, "appearance"], [frameSelect, "frame"], [orientationSelect, "orientation"], [viewSelect, "view"]].forEach(([el, key]) =>
+  el.addEventListener("change", () => { savePref(key, el.value); if (code.value) run(); }));
+document.querySelector("#dlsvg").onclick = () => {
+  if (!lastSvg) return setStatus("Run first to have something to export", true);
+  download((current.split("/").pop() || "sketch").replace(/\.swift$/, "") + ".svg", new Blob([lastSvg], { type: "image/svg+xml" }));
+};
+document.querySelector("#dlpng").onclick = () => {
+  if (!lastSvg) return setStatus("Run first to have something to export", true);
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = img.width * 2; canvas.height = img.height * 2;
+    canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob((b) => download((current.split("/").pop() || "sketch").replace(/\.swift$/, "") + ".png", b));
+  };
+  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(lastSvg);
+};
+window.addEventListener("beforeunload", (e) => { if (isDirty()) { e.preventDefault(); e.returnValue = ""; } });
 code.addEventListener("keydown", (e) => {
+  if (e.key === "Tab" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+    e.preventDefault();
+    code.setRangeText("    ", code.selectionStart, code.selectionEnd, "end");
+    paint();
+    markDirty();
+  }
   if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); run(); }
   if ((e.metaKey || e.ctrlKey) && e.key === "s") { e.preventDefault(); document.querySelector("#save").click(); }
 });
 showPane();
 loadFiles();
+loadDevices();
+loadSession();
 </script>
 </body>
 </html>

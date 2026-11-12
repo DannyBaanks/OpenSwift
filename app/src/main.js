@@ -36,6 +36,9 @@ app.innerHTML = `
   <aside id="stage">
     <div class="preview-heading"><div><span class="eyebrow">CANVAS</span><h2>Preview</h2></div><span class="preview-status"><i></i> Approximate</span></div>
     <label class="device-picker"><span>Device frame</span><select id="device"></select></label>
+    <label class="device-picker"><span>Appearance</span><select id="appearance"><option value="dark">Dark</option><option value="light">Light</option></select></label>
+    <label class="device-picker"><span>Orientation</span><select id="orientation"><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></label>
+    <label class="device-picker"><span>Case color</span><select id="frame"><option value="black">Black</option><option value="natural">Natural</option><option value="white">White</option><option value="blue">Blue</option><option value="none">No frame</option></select></label>
     <div class="phone-stage"><div id="phone"><div id="screen"><div id="empty"><span class="empty-glyph">◉</span><strong>Your preview lives here</strong><span>Open a Swift file and run it to see the sketch.</span></div></div></div></div>
     <div class="preview-footnote"><span class="tiny-dot"></span> Static layout preview <span>·</span> no Swift runtime</div>
   </aside>
@@ -58,8 +61,16 @@ const DEVICES = [
   ["iphone-14-plus", "iPhone 14 Plus"],
   ["iphone-14-pro", "iPhone 14 Pro · isla"],
   ["iphone-15", "iPhone 15"],
+  ["iphone-15-plus", "iPhone 15 Plus"],
+  ["iphone-15-pro", "iPhone 15 Pro"],
   ["iphone-16", "iPhone 16"],
+  ["iphone-16-plus", "iPhone 16 Plus"],
   ["iphone-16-pro", "iPhone 16 Pro"],
+  ["iphone-16-pro-max", "iPhone 16 Pro Max"],
+  ["ipad-10", "iPad (10th gen)"],
+  ["ipad-air-11", "iPad Air 11\""],
+  ["ipad-pro-11", "iPad Pro 11\""],
+  ["ipad-pro-13", "iPad Pro 13\""],
 ];
 const deviceSelect = document.querySelector("#device");
 DEVICES.forEach(([id, name]) => {
@@ -69,6 +80,13 @@ DEVICES.forEach(([id, name]) => {
   deviceSelect.appendChild(opt);
 });
 deviceSelect.value = "iphone-14";
+const appearanceSelect = document.querySelector("#appearance");
+const frameSelect = document.querySelector("#frame");
+const orientationSelect = document.querySelector("#orientation");
+try {
+  appearanceSelect.value = localStorage.getItem("openswift-appearance") || "dark";
+  frameSelect.value = localStorage.getItem("openswift-frame") || "black";
+} catch (e) {}
 
 let current = "";
 let saved = "";
@@ -218,7 +236,7 @@ async function openFile(path) {
   log("console", "opened " + path);
 }
 async function run() {
-  const data = await invoke("render_source", { source: code.value, device: deviceSelect.value });
+  const data = await invoke("render_source", { source: code.value, device: deviceSelect.value, appearance: appearanceSelect.value, frame: frameSelect.value, orientation: orientationSelect.value });
   if (data.svg) screen.innerHTML = data.svg;
   if (!data.ok) {
     panes.problems = data.error || "Could not read a view.";
@@ -295,3 +313,8 @@ document.addEventListener("keydown", (e) => {
 });
 show();
 refresh().catch((err) => log("console", String(err)));
+
+[appearanceSelect, frameSelect, orientationSelect].forEach((el) => el.addEventListener("change", () => {
+  try { localStorage.setItem("openswift-appearance", appearanceSelect.value); localStorage.setItem("openswift-frame", frameSelect.value); } catch (e) {}
+  if (code.value) run().catch((err) => log("console", String(err)));
+}));

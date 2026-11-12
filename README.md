@@ -48,7 +48,16 @@ PYTHONPATH="$PWD" python3 -m openswift render --device iphone-16-pro
 PYTHONPATH="$PWD" python3 -m openswift status
 ```
 
-Cada render guarda otra iteración en `.ui-session/iterations/`. La preview actual queda en `.ui-session/preview.png` y su SVG en `.ui-session/preview.svg`.
+Cada render guarda otra iteración en `.ui-session/iterations/`. El PNG sale del mismo SVG que dibuja el Studio (con Chrome/Chromium, `cairosvg`, `rsvg-convert` o `inkscape` si hay alguno instalado; si no, un pintor mínimo integrado, y `status` lo avisa), así que nunca se desfasa del dibujo.
+
+Puedes pedir varios *frames* de una vez; cada uno se acomoda a su propia pantalla:
+
+```bash
+PYTHONPATH="$PWD" python3 -m openswift render --device iphone-12,iphone-16-pro,ipad-air-11
+PYTHONPATH="$PWD" python3 -m openswift render --device phones --appearance both
+```
+
+El primero es la iteración (`001.png`); los demás quedan como `001-<dispositivo>-<look>.png`, junto a una hoja comparativa `001-sheet.png`. En el Studio web, el selector **View** muestra lo mismo en pantalla. La preview actual queda en `.ui-session/preview.png` y su SVG en `.ui-session/preview.svg`.
 
 Para cerrar la sesión, elimina `.ui-session/target.json` cuando ya no necesites el límite de escritura. Los archivos de evidencia de la sesión se conservan.
 
@@ -86,7 +95,7 @@ PYTHONPATH="$OPENSWIFT_DIR" python3 -m openswift studio \
   "/ruta/a/tu/proyecto" --port 8765
 ```
 
-Abre `http://127.0.0.1:8765`. El servidor sólo acepta los hosts locales esperados, bloquea orígenes externos y comprueba que las rutas permanezcan dentro del proyecto. Si hay una `.ui-session/target.json`, también aplica su lista de escritura permitida.
+Abre `http://127.0.0.1:8765`. El Studio web incluye selector de dispositivo, modo *Live* (redibuja al escribir), tema claro/oscuro, aviso de cambios sin guardar y un panel **Session** con el objetivo activo. En `examples/` hay pantallas de muestra (`login`, `settings`, `dashboard`). El servidor sólo acepta los hosts locales esperados, bloquea orígenes externos y comprueba que las rutas permanezcan dentro del proyecto. Si hay una `.ui-session/target.json`, también aplica su lista de escritura permitida.
 
 ## CLI
 
@@ -99,11 +108,20 @@ PYTHONPATH="$PWD" python3 -m openswift draw examples/hello.swift \
 PYTHONPATH="$PWD" python3 -m openswift sketch examples/hello.swift \
   --device iphone-12
 
+# Modo claro y carcasa distinta, o sólo la pantalla sin marco
+PYTHONPATH="$PWD" python3 -m openswift draw examples/dashboard.swift \
+  --device iphone-16-pro --appearance light --frame natural --output /tmp/dash.svg
+
+# iPad en horizontal, y la sesión también acepta --appearance/--frame/--orientation
+PYTHONPATH="$PWD" python3 -m openswift draw examples/gallery.swift \
+  --device ipad-pro-11 --orientation landscape --output /tmp/gallery.svg
+PYTHONPATH="$PWD" python3 -m openswift render --device iphone-16 --appearance light --orientation landscape
+
 # Ver las opciones disponibles
 PYTHONPATH="$PWD" python3 -m openswift --help
 ```
 
-Dispositivos incluidos: `iphone-11`, `iphone-12`, `iphone-13`, `iphone-14`, `iphone-14-plus`, `iphone-14-pro`, `iphone-15`, `iphone-16` e `iphone-16-pro`.
+Dispositivos incluidos: `iphone-11`, `iphone-12`, `iphone-13`, `iphone-14`, `iphone-14-plus`, `iphone-14-pro`, `iphone-15`, `iphone-15-plus`, `iphone-15-pro`, `iphone-16`, `iphone-16-plus`, `iphone-16-pro` e `iphone-16-pro-max`, más `ipad-10`, `ipad-air-11`, `ipad-pro-11` e `ipad-pro-13`. Con `--orientation landscape` cualquiera se dibuja de lado.
 
 ## Qué dibuja
 
@@ -115,8 +133,12 @@ Dispositivos incluidos: `iphone-11`, `iphone-12`, `iphone-13`, `iphone-14`, `iph
 | `TextField`, `SecureField`, `Label`, `Image` | Caja etiquetada |
 | `Form`, `Section`, `List`, `ScrollView` | Contenedores verticales |
 | `NavigationStack`, `Group`, `GroupBox` | Contenedores del sketch |
-| Padding, fondo, radio de esquina y frame sencillo | Modificadores compatibles del preview |
-| `.sheet`, `.overlay`, bindings, animaciones y vistas propias | No se ejecutan; pueden aparecer como cajas o avisos |
+| `Toggle`, `TextField`, `SecureField`, `Label`, `Image` | Interruptor iOS, campos redondeados, icono marcador |
+| Padding, fondo, degradados (`LinearGradient`), `cornerRadius`, `clipShape`, `shadow`, `opacity`, `frame(width:height:maxWidth:)` | Modificadores compatibles del preview |
+| `.font(.title…)`, `.fontWeight`, colores del sistema (`.blue`, `.gray`, `.secondary`…), `Color(hex:)`, `.buttonStyle` | Tipografía y color estilo iOS |
+| `ForEach` (rangos, arrays literales; si no, 3 copias) y vistas propias del mismo archivo (`Tile()`) | Se expanden con su `body` |
+| `Image(systemName:)` / `Label(systemImage:)` | ~20 SF Symbols redibujados (heart, star, bell, house, person, gearshape…); el resto, un icono marcador |
+| `.sheet`, bindings, animaciones | No se ejecutan; pueden aparecer como cajas o avisos |
 
 La salida ayuda a conversar sobre composición y proporciones. No representa fielmente el comportamiento, tipografía ni layout final de SwiftUI en iOS.
 

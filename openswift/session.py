@@ -4,13 +4,15 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-from openswift.devices import get_device
+from openswift.devices import expand_devices, get_device
 from openswift.parse import parse_swiftui
 from openswift.png import fill, write_png
-from openswift.render import _PALETTE, FRAMES, layout, render_svg
+from openswift.raster import svg_to_png
+from openswift.render import _PALETTE, FRAMES, layout, render_svg, sheet_svg
 
 PROVIDERS = ("approximate-web", "miniswift", "xcode-preview")
 SESSION_DIR = ".ui-session"
@@ -61,7 +63,15 @@ def render_session(
     appearance: str = "dark",
     frame: str = "black",
     orientation: str = "portrait",
+    scale: int = 2,
 ) -> Path:
+    """Draw the locked view and keep the iteration.
+
+    `device_id` may name several devices (`iphone-12,ipad-pro-11`, or `phones`,
+    `ipads`, `all`) and `appearance` may be `both`. Each frame is laid out for
+    its own screen. The first one is the iteration (`NNN.png`); the others and a
+    side-by-side sheet are kept next to it.
+    """
     root, record = load(cwd)
     if record.get("provider") != "approximate-web":
         raise ValueError(record.get("provider"))
@@ -69,21 +79,38 @@ def render_session(
     source = target.read_text(encoding="utf-8")
     (root / "source.swift").write_text(source, encoding="utf-8")
     tree = parse_swiftui(source)
-    svg = render_svg(tree, device_id, appearance, frame, orientation)
-    (root / "preview.svg").write_text(svg, encoding="utf-8")
-    png_path = root / "preview.png"
-    _write_preview_png(tree, png_path, device_id, appearance, frame, orientation)
-    digest = hashlib.sha256(png_path.read_bytes()).hexdigest()
-    (root / "preview.sha256").write_text(digest + "\n", encoding="utf-8")
+
+    devices = expand_devices(device_id)
+    looks = ["dark", "light"] if appearance == "both" else [appearance]
+    frames = [(dev, look) for dev in devices for look in looks]
+
     iterations = root / "iterations"
     iterations.mkdir(exist_ok=True)
-    existing = sorted(iterations.glob("*.png"))
-    number = len(existing) + 1
+    number = sum(1 for p in iterations.glob("*.png") if re.fullmatch(r"\d{3}\.png", p.name)) + 1
+    engine = None
     shot = iterations / f"{number:03d}.png"
-    shot.write_bytes(png_path.read_bytes())
+    for index, (dev, look) in enumerate(frames):
+        svg = render_svg(tree, dev, look, frame, orientation)
+        out = shot if index == 0 else iterations / f"{number:03d}-{dev}-{look}.png"
+        used = svg_to_png(svg, out, scale)
+        if used is None:
+            _write_preview_png(tree, out, dev, look, frame, orientation)
+            used = "builtin"
+        if index == 0:
+            engine = used
+            (root / "preview.svg").write_text(svg, encoding="utf-8")
+            (root / "preview.png").write_bytes(out.read_bytes())
+    if len(frames) > 1 and len(looks) == 1:
+        sheet = sheet_svg(tree, devices, looks[0], frame, orientation)
+        (root / "preview-sheet.svg").write_text(sheet, encoding="utf-8")
+        svg_to_png(sheet, iterations / f"{number:03d}-sheet.png", 1)
+    digest = hashlib.sha256(shot.read_bytes()).hexdigest()
+    (root / "preview.sha256").write_text(digest + "\n", encoding="utf-8")
     (iterations / f"{number:03d}.sha256").write_text(digest + "\n", encoding="utf-8")
     record["iteration"] = number
     record["preview_sha256"] = digest
+    record["raster"] = engine
+    record["frame_count"] = len(frames)
     (root / "target.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
     return shot
 
@@ -96,6 +123,7 @@ def status_text(cwd: Path | None = None) -> str:
         f"allowed: {', '.join(record.get('allowed') or []) or '(none)'}",
         f"read only: {record.get('read_only')}",
         f"iteration: {record.get('iteration', 0)}",
+        f"png: {record.get('raster') or '(not rendered yet)'}" + (" (fallback painter; install Chrome, cairosvg or rsvg-convert for the real picture)" if record.get("raster") == "builtin" else ""),
         f"session: {root}",
     ]
     intent = root / "intent.md"

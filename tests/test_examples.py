@@ -147,3 +147,67 @@ class PendingFeaturesTest(unittest.TestCase):
                 self.assertNotEqual(dark.read_bytes(), light.read_bytes())
             finally:
                 os.chdir(cwd)
+
+
+class FramesTest(unittest.TestCase):
+    def test_expand_devices_presets_and_errors(self) -> None:
+        from openswift.devices import DEVICES, expand_devices
+
+        self.assertEqual(set(expand_devices("all")), set(DEVICES))
+        self.assertTrue(all(i.startswith("ipad") for i in expand_devices("ipads")))
+        self.assertEqual(expand_devices("iphone-15, iphone-15"), ["iphone-15"])
+        with self.assertRaises(ValueError):
+            expand_devices("iphone-99")
+
+    def test_sheet_lays_each_device_out_for_its_own_screen(self) -> None:
+        from openswift.parse import parse_swiftui
+        from openswift.render import sheet_svg
+
+        svg = sheet_svg(parse_swiftui('var body: some View { Text("hi") }'), ["iphone-12", "ipad-pro-11"])
+        self.assertEqual(svg.count("<svg "), 3)  # the sheet and two frames
+        self.assertIn("iPad Pro 11", svg)
+        ids = [part.split('"')[0] for part in svg.split('id="')[1:]]
+        self.assertEqual(len(ids), len(set(ids)), "ids must stay unique across frames")
+
+    def test_session_keeps_every_frame_and_a_sheet(self) -> None:
+        import os
+
+        from openswift.session import focus, render_session, status_text
+
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = os.getcwd()
+            os.chdir(tmp)
+            try:
+                Path("V.swift").write_text('var body: some View { Text("hi") }', encoding="utf-8")
+                focus(Path("V.swift"), [], "check", "approximate-web")
+                first = render_session(device_id="iphone-12,ipad-air-11")
+                names = sorted(p.name for p in first.parent.glob("*.png"))
+                self.assertEqual(first.name, "001.png")
+                self.assertIn("001-ipad-air-11-dark.png", names)
+                self.assertIn("png:", status_text())
+                both = render_session(device_id="iphone-12", appearance="both")
+                self.assertEqual(both.name, "002.png")
+                self.assertTrue((both.parent / "002-iphone-12-light.png").is_file())
+            finally:
+                os.chdir(cwd)
+
+    def test_png_falls_back_when_no_rasterizer_exists(self) -> None:
+        import os
+        from unittest import mock
+
+        from openswift import raster
+        from openswift.session import focus, render_session
+
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = os.getcwd()
+            os.chdir(tmp)
+            try:
+                Path("V.swift").write_text('var body: some View { Text("hi") }', encoding="utf-8")
+                focus(Path("V.swift"), [], "check", "approximate-web")
+                with mock.patch.object(raster, "available_engines", return_value=[]):
+                    shot = render_session()
+                self.assertTrue(shot.read_bytes().startswith(b"\x89PNG"))
+                record = json.loads((Path(tmp) / ".ui-session" / "target.json").read_text())
+                self.assertEqual(record["raster"], "builtin")
+            finally:
+                os.chdir(cwd)

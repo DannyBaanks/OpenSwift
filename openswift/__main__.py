@@ -38,8 +38,9 @@ def main(argv: list[str] | None = None) -> int:
     lock.add_argument("--provider", default="approximate-web", choices=PROVIDERS)
 
     render_parser = sub.add_parser("render", help="draw the locked view and keep the iteration")
-    render_parser.add_argument("--device", default="iphone-14")
-    render_parser.add_argument("--appearance", default="dark", choices=APPEARANCES)
+    render_parser.add_argument("--device", default="iphone-14", help="one id, a comma list, or phones / ipads / all")
+    render_parser.add_argument("--scale", type=int, default=2, help="PNG pixel density")
+    render_parser.add_argument("--appearance", default="dark", choices=[*APPEARANCES, "both"])
     render_parser.add_argument("--frame", default="black", choices=list(FRAMES))
     render_parser.add_argument("--orientation", default="portrait", choices=ORIENTATIONS)
     sub.add_parser("status", help="print the current lock")
@@ -64,7 +65,7 @@ def main(argv: list[str] | None = None) -> int:
             print(root)
             return 0
         if args.cmd == "render":
-            print(render_session(device_id=args.device, appearance=args.appearance, frame=args.frame, orientation=args.orientation))
+            print(render_session(device_id=args.device, appearance=args.appearance, frame=args.frame, orientation=args.orientation, scale=args.scale))
             return 0
         if args.cmd == "studio":
             serve(args.project.resolve(), port=args.port)

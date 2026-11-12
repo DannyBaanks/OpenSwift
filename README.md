@@ -48,7 +48,16 @@ PYTHONPATH="$PWD" python3 -m openswift render --device iphone-16-pro
 PYTHONPATH="$PWD" python3 -m openswift status
 ```
 
-Cada render guarda otra iteración en `.ui-session/iterations/`. La preview actual queda en `.ui-session/preview.png` y su SVG en `.ui-session/preview.svg`.
+Cada render guarda otra iteración en `.ui-session/iterations/`. El PNG sale del mismo SVG que dibuja el Studio (con Chrome/Chromium, `cairosvg`, `rsvg-convert` o `inkscape` si hay alguno instalado; si no, un pintor mínimo integrado, y `status` lo avisa), así que nunca se desfasa del dibujo.
+
+Puedes pedir varios *frames* de una vez; cada uno se acomoda a su propia pantalla:
+
+```bash
+PYTHONPATH="$PWD" python3 -m openswift render --device iphone-12,iphone-16-pro,ipad-air-11
+PYTHONPATH="$PWD" python3 -m openswift render --device phones --appearance both
+```
+
+El primero es la iteración (`001.png`); los demás quedan como `001-<dispositivo>-<look>.png`, junto a una hoja comparativa `001-sheet.png`. En el Studio web, el selector **View** muestra lo mismo en pantalla. La preview actual queda en `.ui-session/preview.png` y su SVG en `.ui-session/preview.svg`.
 
 Para cerrar la sesión, elimina `.ui-session/target.json` cuando ya no necesites el límite de escritura. Los archivos de evidencia de la sesión se conservan.
 

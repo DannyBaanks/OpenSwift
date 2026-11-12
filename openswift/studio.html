@@ -72,7 +72,7 @@
   .badge { display: inline-block; min-width: 16px; padding: 0 5px; margin-left: 4px; border-radius: 999px; background: var(--orange); color: #fff; font-size: 11px; line-height: 16px; text-align: center; }
   .badge[hidden] { display: none; }
   .toggle { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; }
-  #devicewrap, #devicewrap2, #devicewrap3, #devicewrap4 { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+  #devicewrap, #devicewrap2, #devicewrap3, #devicewrap4, #devicewrap5 { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
   #status { color: var(--muted); }
   #status.err { color: #d23b2e; }
   @media (max-width: 1000px) { main { grid-template-columns: 48px 160px 1fr 280px; } #search { display: none; } }
@@ -86,6 +86,7 @@
   <label class="toggle" title="Redraw while you type"><input type="checkbox" id="live"> Live</label>
   <label id="devicewrap">Device <select id="device"></select></label>
   <label id="devicewrap2">Look <select id="appearance"><option value="dark">Dark</option><option value="light">Light</option></select></label>
+  <label id="devicewrap5" title="Show the same screen on several devices at once">View <select id="view"><option value="">Single</option><option value="iphone-12,iphone-16-pro,iphone-16-pro-max">3 phones</option><option value="iphone-16-pro,ipad-air-11">Phone + iPad</option><option value="phones">All phones</option><option value="all">Every device</option></select></label>
   <label id="devicewrap4">Turn <select id="orientation"><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></label>
   <label id="devicewrap3">Case <select id="frame"></select></label>
   <button id="theme" title="Toggle light/dark">Theme</button>
@@ -166,6 +167,7 @@ const root = document.documentElement;
 const appearanceSelect = document.querySelector("#appearance");
 const frameSelect = document.querySelector("#frame");
 const orientationSelect = document.querySelector("#orientation");
+const viewSelect = document.querySelector("#view");
 let lastSvg = "";
 function pref(key, fallback) { try { return localStorage.getItem("openswift-" + key) || fallback; } catch (e) { return fallback; } }
 function savePref(key, value) { try { localStorage.setItem("openswift-" + key, value); } catch (e) {} }
@@ -226,6 +228,17 @@ async function openFile(path) {
   log("console", "opened " + path);
 }
 async function run() {
+  if (viewSelect.value) {
+    const sheetRes = await fetch("/api/sheet", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ source: code.value, devices: viewSelect.value, appearance: appearanceSelect.value, frame: frameSelect.value, orientation: orientationSelect.value }) });
+    const sheetData = await sheetRes.json();
+    if (!sheetData.ok) { setStatus("could not draw: " + sheetData.error, true); return; }
+    screen.innerHTML = sheetData.svg;
+    lastSvg = sheetData.svg;
+    document.querySelector("#phone").style.width = "100%";
+    setStatus("drawn on " + sheetData.devices.length + " devices");
+    return;
+  }
+  document.querySelector("#phone").style.width = "";
   const res = await fetch("/api/render", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ source: code.value, device: deviceSelect.value, appearance: appearanceSelect.value, frame: frameSelect.value, orientation: orientationSelect.value }) });
   const data = await res.json();
   if (!data.ok) {
@@ -271,6 +284,8 @@ async function loadDevices() {
     frameSelect.value = pref("frame", "black");
     appearanceSelect.value = pref("appearance", "dark");
     orientationSelect.value = pref("orientation", "portrait");
+    viewSelect.value = pref("view", "");
+    if (viewSelect.value !== pref("view", "")) viewSelect.value = "";
   } catch (e) { /* the picker stays empty; render falls back to the default frame */ }
 }
 async function loadSession() {
@@ -328,7 +343,7 @@ code.addEventListener("input", () => {
     liveTimer = setTimeout(() => run().catch((err) => setStatus(String(err), true)), 400);
   }
 });
-[[deviceSelect, "device"], [appearanceSelect, "appearance"], [frameSelect, "frame"], [orientationSelect, "orientation"]].forEach(([el, key]) =>
+[[deviceSelect, "device"], [appearanceSelect, "appearance"], [frameSelect, "frame"], [orientationSelect, "orientation"], [viewSelect, "view"]].forEach(([el, key]) =>
   el.addEventListener("change", () => { savePref(key, el.value); if (code.value) run(); }));
 document.querySelector("#dlsvg").onclick = () => {
   if (!lastSvg) return setStatus("Run first to have something to export", true);

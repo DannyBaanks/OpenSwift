@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import html
+import re
 from dataclasses import dataclass
 
 from openswift.devices import ORIENTATIONS, NotchType, get_device
@@ -330,7 +331,9 @@ def render_svg(
     appearance: str = "dark",
     frame: str = "black",
     orientation: str = "portrait",
+    uid: str = "",
 ) -> str:
+    """One SVG. `uid` prefixes every id so several can live in one sheet."""
     device = get_device(device_id, orientation)
     landscape = orientation == "landscape"
     phone_landscape = landscape and device.idiom == "phone"
@@ -379,7 +382,46 @@ def render_svg(
             f'font-family="{_FONT}" font-size="9">OpenSwift sketch \xb7 not compiled Swift</text>'
         )
     head = f'<svg xmlns="http://www.w3.org/2000/svg" width="{phone_w}" height="{phone_h}" viewBox="0 0 {phone_w} {phone_h}">'
-    return "\n".join([head, "<defs>" + "".join(defs) + "</defs>", *body, "</svg>"])
+    svg = "\n".join([head, "<defs>" + "".join(defs) + "</defs>", *body, "</svg>"])
+    if uid:
+        svg = re.sub(r'\bid="([\w-]+)"', lambda m: f'id="{uid}{m.group(1)}"', svg)
+        svg = re.sub(r"url\(#([\w-]+)\)", lambda m: f"url(#{uid}{m.group(1)})", svg)
+    return svg
+
+
+def sheet_svg(
+    root: ViewNode,
+    devices: list[str],
+    appearance: str = "dark",
+    frame: str = "black",
+    orientation: str = "portrait",
+) -> str:
+    """The same sketch on several devices, side by side, each laid out for its own screen."""
+    import re as _re
+
+    gap, label_h = 40, 34
+    frames = []
+    for index, device_id in enumerate(devices):
+        svg = render_svg(root, device_id, appearance, frame, orientation, uid=f"f{index}-")
+        size = _re.search(r'width="(\d+)" height="(\d+)"', svg)
+        frames.append((svg, int(size.group(1)), int(size.group(2)), get_device(device_id, orientation).name))
+    height = max(h for _, _, h, _ in frames) + label_h
+    cursor, parts = 0, []
+    for svg, w, h, name in frames:
+        top = (height - label_h - h) / 2
+        inner = svg.replace("<svg ", f'<svg x="{cursor}" y="{top:.0f}" ', 1)
+        parts.append(inner)
+        parts.append(
+            f'<text x="{cursor + w / 2}" y="{height - 10}" fill="#8e8e93" text-anchor="middle" '
+            f'font-family="{_FONT}" font-size="15">{_esc(name)}</text>'
+        )
+        cursor += w + gap
+    total = max(cursor - gap, 1)
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{total}" height="{height:.0f}" viewBox="0 0 {total} {height:.0f}">'
+        + "\n".join(parts)
+        + "</svg>"
+    )
 
 
 def _side_buttons(device, screen_x: int, screen_y: int, color: str) -> list[str]:

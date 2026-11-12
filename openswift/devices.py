@@ -188,6 +188,23 @@ DEVICES.update({
 })
 
 
+def expand_devices(spec: str) -> list[str]:
+    """`iphone-15,ipad-pro-11`, or a preset: `phones`, `ipads`, `all`."""
+    ids: list[str] = []
+    for part in (item.strip() for item in spec.split(",") if item.strip()):
+        if part == "all":
+            ids.extend(DEVICES)
+        elif part == "phones":
+            ids.extend(i for i, d in DEVICES.items() if d.idiom == "phone")
+        elif part == "ipads":
+            ids.extend(i for i, d in DEVICES.items() if d.idiom == "pad")
+        elif part in DEVICES:
+            ids.append(part)
+        else:
+            raise ValueError(f"unknown device {part}. Known: {', '.join(DEVICES)}")
+    return list(dict.fromkeys(ids)) or ["iphone-14"]
+
+
 def get_device(device_id: str, orientation: str = "portrait") -> Device:
     """The device, turned on its side when orientation is landscape."""
     device = DEVICES.get(device_id, DEVICES["iphone-14"])

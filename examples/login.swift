@@ -6,7 +6,6 @@ struct Login: View {
             Spacer()
             Text("Bienvenido")
                 .font(.system(size: 28, weight: .bold))
-                .foregroundColor(.white)
             Text("Entra para seguir diseñando")
                 .font(.system(size: 14))
                 .foregroundColor(.gray)
@@ -20,6 +19,5 @@ struct Login: View {
             Spacer()
         }
         .padding(24)
-        .background(Color.black)
     }
 }

@@ -5,7 +5,6 @@ struct Settings: View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Ajustes")
                 .font(.system(size: 30, weight: .bold))
-                .foregroundColor(.white)
             HStack {
                 Label("Modo avión", systemImage: "airplane")
                 Spacer()
@@ -29,6 +28,5 @@ struct Settings: View {
                 .frame(height: 44)
         }
         .padding(20)
-        .background(Color.black)
     }
 }

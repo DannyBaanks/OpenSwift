@@ -54,16 +54,16 @@
   #dockpre { margin: 0; padding: 8px 12px; overflow: auto; font: 12px/1.45 ui-monospace, monospace; color: var(--dockink); white-space: pre-wrap; }
   #stage { border-left: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px; min-width: 0; }
   #stage .tools { display: flex; gap: 6px; }
-  #phone { width: 230px; height: 470px; border: 8px solid #111; border-radius: 32px; background: #fff; overflow: hidden; box-shadow: 0 16px 40px rgba(0,0,0,.12); }
-  #phone .bar { height: 22px; background: #111; }
-  #phone .screen { height: calc(100% - 22px); overflow: auto; background: #000; }
+  #phone { width: 290px; max-width: 100%; transition: width .15s ease; filter: drop-shadow(0 18px 28px rgba(0,0,0,.28)); }
   #phone svg { width: 100%; height: auto; display: block; }
+  #stage { overflow: auto; background: radial-gradient(circle at 50% 0%, var(--surface), var(--bg) 70%); }
+  #stage .tools { flex-wrap: wrap; justify-content: center; }
   footer { display: flex; justify-content: space-between; align-items: center; padding: 0 12px; color: var(--muted); border-top: 1px solid var(--line); font-size: 12px; }
   #empty { color: var(--muted); padding: 24px; }
   .badge { display: inline-block; min-width: 16px; padding: 0 5px; margin-left: 4px; border-radius: 999px; background: var(--orange); color: #fff; font-size: 11px; line-height: 16px; text-align: center; }
   .badge[hidden] { display: none; }
   .toggle { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; }
-  #devicewrap { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+  #devicewrap, #devicewrap2, #devicewrap3 { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
   #status { color: var(--muted); }
   #status.err { color: #d23b2e; }
   @media (max-width: 1000px) { main { grid-template-columns: 48px 160px 1fr 280px; } #search { display: none; } }
@@ -76,6 +76,8 @@
   <button id="save" disabled>Save</button>
   <label class="toggle" title="Redraw while you type"><input type="checkbox" id="live"> Live</label>
   <label id="devicewrap">Device <select id="device"></select></label>
+  <label id="devicewrap2">Look <select id="appearance"><option value="dark">Dark</option><option value="light">Light</option></select></label>
+  <label id="devicewrap3">Case <select id="frame"></select></label>
   <button id="theme" title="Toggle light/dark">Theme</button>
   <input id="search" placeholder="Filter files in this project" />
 </header>
@@ -100,11 +102,13 @@
   </section>
   <aside id="stage">
     <div class="tools">
-      <button data-zoom="0.7">50%</button>
-      <button data-zoom="0.85">75%</button>
-      <button data-zoom="1">100%</button>
+      <button id="dlsvg" title="Download the sketch as SVG">SVG ↓</button>
+      <button id="dlpng" title="Download the sketch as PNG">PNG ↓</button>
+      <button data-zoom="0.6">Small</button>
+      <button data-zoom="0.85">Medium</button>
+      <button data-zoom="1.1">Large</button>
     </div>
-    <div id="phone"><div class="bar"></div><div class="screen" id="screen"><div id="empty">Run to draw this file.</div></div></div>
+    <div id="phone"><div id="screen"><div id="empty">Run to draw this file.</div></div></div>
   </aside>
 </main>
 <footer>
@@ -125,6 +129,18 @@ let liveTimer = null;
 const statusEl = document.querySelector("#status");
 const deviceSelect = document.querySelector("#device");
 const root = document.documentElement;
+const appearanceSelect = document.querySelector("#appearance");
+const frameSelect = document.querySelector("#frame");
+let lastSvg = "";
+function pref(key, fallback) { try { return localStorage.getItem("openswift-" + key) || fallback; } catch (e) { return fallback; } }
+function savePref(key, value) { try { localStorage.setItem("openswift-" + key, value); } catch (e) {} }
+function download(name, blob) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
 function setStatus(text, bad) { statusEl.textContent = text; statusEl.classList.toggle("err", !!bad); }
 function isDirty() { return !!current && code.value !== saved; }
 function markDirty() {
@@ -174,7 +190,7 @@ async function openFile(path) {
   log("console", "opened " + path);
 }
 async function run() {
-  const res = await fetch("/api/render", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ source: code.value, device: deviceSelect.value }) });
+  const res = await fetch("/api/render", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ source: code.value, device: deviceSelect.value, appearance: appearanceSelect.value, frame: frameSelect.value }) });
   const data = await res.json();
   if (!data.ok) {
     setBadge(1);
@@ -186,6 +202,7 @@ async function run() {
     return;
   }
   screen.innerHTML = data.svg;
+  lastSvg = data.svg;
   panes.debug = "Sketch tree (not a call stack)\n\n" + fmt(data.tree, 0);
   setBadge(data.problems.length);
   setStatus("drawn " + new Date().toLocaleTimeString());
@@ -208,7 +225,15 @@ async function loadDevices() {
       opt.textContent = d.name;
       deviceSelect.appendChild(opt);
     });
-    deviceSelect.value = "iphone-14";
+    deviceSelect.value = pref("device", "iphone-14");
+    data.frames.forEach((f) => {
+      const opt = document.createElement("option");
+      opt.value = f;
+      opt.textContent = f === "none" ? "No frame" : f[0].toUpperCase() + f.slice(1);
+      frameSelect.appendChild(opt);
+    });
+    frameSelect.value = pref("frame", "black");
+    appearanceSelect.value = pref("appearance", "dark");
   } catch (e) { /* the picker stays empty; render falls back to the default frame */ }
 }
 async function loadSession() {
@@ -256,8 +281,7 @@ document.querySelector("#save").onclick = async () => {
 };
 search.oninput = drawFiles;
 document.querySelectorAll("[data-zoom]").forEach(b => b.onclick = () => {
-  document.querySelector("#phone").style.transform = "scale(" + b.dataset.zoom + ")";
-  document.querySelector("#phone").style.transformOrigin = "top center";
+  document.querySelector("#phone").style.width = Math.round(290 * b.dataset.zoom / 0.85) + "px";
 });
 code.addEventListener("input", () => {
   markDirty();
@@ -266,7 +290,23 @@ code.addEventListener("input", () => {
     liveTimer = setTimeout(() => run().catch((err) => setStatus(String(err), true)), 400);
   }
 });
-deviceSelect.addEventListener("change", () => { if (code.value) run(); });
+[[deviceSelect, "device"], [appearanceSelect, "appearance"], [frameSelect, "frame"]].forEach(([el, key]) =>
+  el.addEventListener("change", () => { savePref(key, el.value); if (code.value) run(); }));
+document.querySelector("#dlsvg").onclick = () => {
+  if (!lastSvg) return setStatus("Run first to have something to export", true);
+  download((current.split("/").pop() || "sketch").replace(/\.swift$/, "") + ".svg", new Blob([lastSvg], { type: "image/svg+xml" }));
+};
+document.querySelector("#dlpng").onclick = () => {
+  if (!lastSvg) return setStatus("Run first to have something to export", true);
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = img.width * 2; canvas.height = img.height * 2;
+    canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob((b) => download((current.split("/").pop() || "sketch").replace(/\.swift$/, "") + ".png", b));
+  };
+  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(lastSvg);
+};
 window.addEventListener("beforeunload", (e) => { if (isDirty()) { e.preventDefault(); e.returnValue = ""; } });
 code.addEventListener("keydown", (e) => {
   if (e.key === "Tab" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {

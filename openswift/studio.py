@@ -10,10 +10,10 @@ from urllib.parse import parse_qs, urlparse
 
 from openswift.devices import DEVICES
 from openswift.parse import ParseError, ViewNode, parse_swiftui
-from openswift.render import render_svg
+from openswift.render import APPEARANCES, FRAMES, render_svg
 
 PAGE = Path(__file__).with_name("studio.html")
-KNOWN = {"VStack", "HStack", "ZStack", "Text", "Button", "Spacer", "Divider", "TextField", "SecureField", "Image", "Label"}
+KNOWN = {"VStack", "HStack", "ZStack", "Text", "Button", "Spacer", "Divider", "TextField", "SecureField", "Image", "Label", "Toggle"}
 
 
 def _tree(node: ViewNode) -> dict:
@@ -47,7 +47,7 @@ def highlight(source: str) -> list:
         return []
 
 
-def sketch(source: str, device: str = "iphone-14") -> dict:
+def sketch(source: str, device: str = "iphone-14", appearance: str = "dark", frame: str = "black") -> dict:
     try:
         root = parse_swiftui(source)
     except ParseError as exc:
@@ -57,11 +57,13 @@ def sketch(source: str, device: str = "iphone-14") -> dict:
     return {
         "ok": True,
         "error": "",
-        "svg": render_svg(root, device),
+        "svg": render_svg(root, device, appearance, frame),
         "problems": problems,
         "tree": _tree(root),
         "tokens": highlight(source),
         "device": device,
+        "appearance": appearance,
+        "frame": frame,
     }
 
 
@@ -189,7 +191,11 @@ def make_server(project: Path, host: str = "127.0.0.1", port: int = 8765) -> Thr
                 self._json(200, {"root": str(project), "files": _files(project)})
                 return
             if url.path == "/api/devices":
-                self._json(200, {"devices": [{"id": d.id, "name": d.name} for d in DEVICES.values()]})
+                self._json(200, {
+                    "devices": [{"id": d.id, "name": d.name} for d in DEVICES.values()],
+                    "appearances": list(APPEARANCES),
+                    "frames": list(FRAMES),
+                })
                 return
             if url.path == "/api/session":
                 self._json(200, {"session": _session_info(project)})
@@ -215,7 +221,7 @@ def make_server(project: Path, host: str = "127.0.0.1", port: int = 8765) -> Thr
                 return
             if url.path == "/api/render":
                 device = data.get("device", "iphone-14")
-                self._json(200, sketch(data.get("source", ""), device))
+                self._json(200, sketch(data.get("source", ""), device, data.get("appearance", "dark"), data.get("frame", "black")))
                 return
             if url.path == "/api/save":
                 try:

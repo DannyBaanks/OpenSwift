@@ -99,6 +99,10 @@ PYTHONPATH="$PWD" python3 -m openswift draw examples/hello.swift \
 PYTHONPATH="$PWD" python3 -m openswift sketch examples/hello.swift \
   --device iphone-12
 
+# Modo claro y carcasa distinta, o sólo la pantalla sin marco
+PYTHONPATH="$PWD" python3 -m openswift draw examples/dashboard.swift \
+  --device iphone-16-pro --appearance light --frame natural --output /tmp/dash.svg
+
 # Ver las opciones disponibles
 PYTHONPATH="$PWD" python3 -m openswift --help
 ```
@@ -115,7 +119,9 @@ Dispositivos incluidos: `iphone-11`, `iphone-12`, `iphone-13`, `iphone-14`, `iph
 | `TextField`, `SecureField`, `Label`, `Image` | Caja etiquetada |
 | `Form`, `Section`, `List`, `ScrollView` | Contenedores verticales |
 | `NavigationStack`, `Group`, `GroupBox` | Contenedores del sketch |
-| Padding, fondo, radio de esquina y frame sencillo | Modificadores compatibles del preview |
+| `Toggle`, `TextField`, `SecureField`, `Label`, `Image` | Interruptor iOS, campos redondeados, icono marcador |
+| Padding, fondo, degradados (`LinearGradient`), `cornerRadius`, `clipShape`, `shadow`, `opacity`, `frame(width:height:maxWidth:)` | Modificadores compatibles del preview |
+| `.font(.title…)`, `.fontWeight`, colores del sistema (`.blue`, `.gray`, `.secondary`…), `Color(hex:)`, `.buttonStyle` | Tipografía y color estilo iOS |
 | `.sheet`, `.overlay`, bindings, animaciones y vistas propias | No se ejecutan; pueden aparecer como cajas o avisos |
 
 La salida ayuda a conversar sobre composición y proporciones. No representa fielmente el comportamiento, tipografía ni layout final de SwiftUI en iOS.

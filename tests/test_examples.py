@@ -43,3 +43,44 @@ class ExamplesTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RegressionTest(unittest.TestCase):
+    """The dashboard bug: `.white`, `.gray` and `.leading` never reached the renderer."""
+
+    def test_modifier_arguments_keep_their_dots(self) -> None:
+        from openswift.parse import parse_swiftui
+
+        root = parse_swiftui(
+            'var body: some View { VStack(alignment: .leading) { Text("a").foregroundColor(.gray) }'
+            '.background(Color.blue.opacity(0.2)) }'
+        )
+        self.assertEqual(root.alignment, "leading")
+        self.assertEqual(root.children[0].color, "#8e8e93")
+        self.assertEqual(root.background, "#0a84ff")
+        self.assertAlmostEqual(root.bg_opacity, 0.2)
+
+    def test_light_and_dark_use_different_text_and_case_colors(self) -> None:
+        from openswift.parse import parse_swiftui
+        from openswift.render import render_svg
+
+        root = parse_swiftui('var body: some View { Text("hi") }')
+        dark = render_svg(root, "iphone-15", "dark", "black")
+        light = render_svg(root, "iphone-15", "light", "natural")
+        self.assertIn('fill="#ffffff" opacity="1.00" text-anchor="start"', dark)
+        self.assertIn('fill="#000000" opacity="1.00" text-anchor="start"', light)
+        self.assertIn("#8c867b", light)
+        self.assertNotIn("<rect x=\"4\"", render_svg(root, "iphone-15", "dark", "none"))
+
+    def test_hstack_children_with_max_width_share_the_row(self) -> None:
+        from openswift.parse import parse_swiftui
+        from openswift.render import layout
+
+        root = parse_swiftui(
+            'var body: some View { HStack { Text("a").frame(maxWidth: .infinity)'
+            ' Text("b").frame(maxWidth: .infinity) } }'
+        )
+        boxes = layout(root, "iphone-14")
+        a, b = boxes[1], boxes[2]
+        self.assertAlmostEqual(a.w, b.w)
+        self.assertLessEqual(b.x + b.w, 390 + 18)

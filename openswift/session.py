@@ -10,7 +10,7 @@ from pathlib import Path
 from openswift.devices import get_device
 from openswift.parse import parse_swiftui
 from openswift.png import fill, write_png
-from openswift.render import BEZEL, SCREEN_H, SCREEN_W, measure, render_svg, _place
+from openswift.render import layout, render_svg
 
 PROVIDERS = ("approximate-web", "miniswift", "xcode-preview")
 SESSION_DIR = ".ui-session"
@@ -128,21 +128,24 @@ def _write_preview_png(tree, path: Path, device_id: str = "iphone-14") -> None:
     _stamp(rgb, width, screen_x + 16, screen_y + device.status_bar_height - 14, "9:41", (255, 255, 255))
     
     # Content boxes
-    boxes: list = []
-    content_w = SCREEN_W - 36
-    _, rh = measure(tree, content_w)
-    tree.frame_max_width = True
-    _place(tree, screen_x + 18, screen_y + 54, content_w, max(rh, SCREEN_H - 88), boxes)
-    
+    boxes = layout(tree, device_id)
+
     for box in boxes:
         node = box.node
         if node.background:
-            fill(rgb, width, int(box.x), int(box.y), int(box.w), int(box.h), _hex(node.background))
+            back = _hex(node.background)
+            if node.bg_opacity < 1:
+                back = tuple(int(c * node.bg_opacity) for c in back)
+            fill(rgb, width, int(box.x), int(box.y), int(box.w), int(box.h), back)
         label = node.text if node.kind in {"Text", "Button"} else ""
+        ink = _hex(node.color) if node.color else (255, 255, 255)
         if node.kind == "Button" and label:
-            fill(rgb, width, int(box.x), int(box.y), int(box.w), max(int(box.h), 8), (255, 255, 255))
+            if not node.background:
+                ink = _hex(node.color) if node.color else (10, 132, 255)
+            elif not node.color:
+                ink = (255, 255, 255)
         if label:
-            _stamp(rgb, width, int(box.x + 8), int(box.y + 8), label, (255, 255, 255) if node.kind != "Button" else (17, 17, 17))
+            _stamp(rgb, width, int(box.x + 8), int(box.y + 8), label, ink)
         elif node.kind not in {"VStack", "HStack", "ZStack", "Spacer"}:
             fill(rgb, width, int(box.x), int(box.y), max(int(box.w), 48), 16, (34, 34, 34))
             _stamp(rgb, width, int(box.x + 4), int(box.y + 4), node.kind, (170, 170, 170))

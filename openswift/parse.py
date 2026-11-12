@@ -17,8 +17,15 @@ class ViewNode:
     children: list["ViewNode"] = field(default_factory=list)
     # modifier bag. Unknown modifiers are listed, not invented.
     font_size: float = 17
-    color: str = "#111111"
+    color: str | None = None          # None = primary label color of the appearance
     background: str | None = None
+    bg_opacity: float = 1
+    gradient: list[str] = field(default_factory=list)
+    shadow: bool = False
+    border: str | None = None
+    frame_width: float | None = None
+    text_align: str = "leading"
+    button_style: str = ""
     pad_top: float = 0
     pad_right: float = 0
     pad_bottom: float = 0
@@ -203,13 +210,19 @@ class _Parser:
                 depth += 1
             elif tok and tok[0] == close:
                 depth -= 1
-        chunk = []
+        out = ""
+        prev_word = False
         for kind, value in self.tokens[start : self.i - 1]:
-            chunk.append(value if kind != "str" else f'"{value}"')
-        return " ".join(chunk)
+            word = kind in {"id", "num", "str"}
+            text = f'"{value}"' if kind == "str" else value
+            if word and prev_word:
+                out += " "
+            out += text
+            prev_word = word
+        return out
 
     def _apply_args(self, node: ViewNode, args: str) -> None:
-        if node.kind in {"Text", "Button", "TextField", "SecureField", "Label"}:
+        if node.kind in {"Text", "Button", "TextField", "SecureField", "Label", "Toggle"}:
             quoted = _first_string(args)
             if quoted:
                 node.text = quoted
@@ -230,28 +243,73 @@ class _Parser:
         self.i += 1
         args = self._balanced("(") if self.accept("(") else ""
         if name == "font":
+            style = _font_style(args)
+            if style:
+                node.font_size, weight = style
+                if weight:
+                    node.weight = weight
             size = _named_number(args, "size")
             if size:
                 node.font_size = size
-            if "semibold" in args or "bold" in args:
-                node.weight = "bold"
-        elif name == "foregroundColor" or name == "foregroundStyle":
+            weight = _weight_name(args)
+            if weight:
+                node.weight = weight
+        elif name == "fontWeight":
+            node.weight = _weight_name(args) or node.weight
+        elif name == "bold":
+            node.weight = "bold"
+        elif name in {"foregroundColor", "foregroundStyle", "tint", "accentColor"}:
             node.color = _color(args) or node.color
             opacity = _named_number(args, "opacity")
             if opacity is not None:
                 node.opacity = opacity
+        elif name == "opacity":
+            number = _first_number(args)
+            if number is not None:
+                node.opacity = number
         elif name == "background":
-            node.background = _color(args) or "#222222"
+            colors = _colors(args)
+            if "Gradient" in args and len(colors) >= 2:
+                node.gradient = colors
+                node.background = colors[0]
+            else:
+                node.background = colors[0] if colors else "#2c2c2e"
+            opacity = _named_number(args, "opacity")
+            if opacity is not None:
+                node.bg_opacity = opacity
+            if "cornerRadius" in args:
+                node.corner = _named_number(args, "cornerRadius") or node.corner
         elif name == "padding":
             _padding(node, args)
         elif name == "cornerRadius":
             number = _first_number(args)
             if number is not None:
                 node.corner = number
+        elif name == "clipShape":
+            if "Capsule" in args or "Circle" in args:
+                node.corner = 999
+            else:
+                number = _named_number(args, "cornerRadius")
+                if number is not None:
+                    node.corner = number
+        elif name in {"border", "overlay"} and _colors(args):
+            node.border = _colors(args)[0]
+        elif name == "shadow":
+            node.shadow = True
+        elif name == "multilineTextAlignment":
+            node.text_align = "center" if "center" in args else "trailing" if "trailing" in args else "leading"
+        elif name == "buttonStyle":
+            for style in ("borderedProminent", "bordered", "plain", "borderless"):
+                if style in args:
+                    node.button_style = style
+                    break
         elif name == "frame":
             height = _named_number(args, "height")
             if height:
                 node.frame_height = height
+            width = _named_number(args, "width")
+            if width:
+                node.frame_width = width
             if "infinity" in args:
                 node.frame_max_width = True
         else:
@@ -286,17 +344,62 @@ def _named_number(args: str, name: str) -> float | None:
     return _first_number(args[at + len(name) :])
 
 
-def _color(args: str) -> str | None:
-    if ".white" in args:
-        return "#ffffff"
-    if ".black" in args:
-        return "#000000"
-    if "red" in args and "green" in args and "blue" in args:
+_SYSTEM_COLORS = {
+    "white": "#ffffff", "black": "#000000", "red": "#ff453a", "orange": "#ff9f0a",
+    "yellow": "#ffd60a", "green": "#30d158", "mint": "#63e6e2", "teal": "#40c8e0",
+    "cyan": "#64d2ff", "blue": "#0a84ff", "indigo": "#5e5ce6", "purple": "#bf5af2",
+    "pink": "#ff375f", "brown": "#ac8e68", "gray": "#8e8e93", "secondary": "#8e8e93",
+    "accentColor": "#0a84ff", "tertiary": "#636366",
+}
+_FONT_STYLES = {
+    "largeTitle": (34, "regular"), "title": (28, "regular"), "title2": (22, "regular"),
+    "title3": (20, "regular"), "headline": (17, "semibold"), "body": (17, None),
+    "callout": (16, None), "subheadline": (15, None), "footnote": (13, None),
+    "caption": (12, None), "caption2": (11, None),
+}
+_WEIGHTS = ("ultraLight", "thin", "light", "regular", "medium", "semibold", "bold", "heavy", "black")
+
+
+def _font_style(args: str) -> tuple[float, str | None] | None:
+    for name, value in _FONT_STYLES.items():
+        if f".{name}" in args and "system" not in args:
+            return value
+    return None
+
+
+def _weight_name(args: str) -> str | None:
+    for name in reversed(_WEIGHTS):
+        if f".{name}" in args:
+            return name
+    return None
+
+
+def _colors(args: str) -> list[str]:
+    """Every color named in a modifier's arguments, in order."""
+    import re
+
+    found: list[tuple[int, str]] = []
+    for match in re.finditer(r'hex:\s*"?#?([0-9a-fA-F]{6})"?|0x([0-9a-fA-F]{6})', args):
+        found.append((match.start(), "#" + (match.group(1) or match.group(2)).lower()))
+    for match in re.finditer(r"white:\s*([0-9.]+)", args):
+        level = int(min(1.0, float(match.group(1).rstrip("."))) * 255)
+        found.append((match.start(), "#{0:02x}{0:02x}{0:02x}".format(level)))
+    if "red" in args and "green" in args and "blue" in args and ":" in args.split("red")[1][:3]:
         red = _named_number(args, "red") or 0
         green = _named_number(args, "green") or 0
         blue = _named_number(args, "blue") or 0
-        return "#{:02x}{:02x}{:02x}".format(int(red * 255), int(green * 255), int(blue * 255))
-    return None
+        found.append((args.find("red"), "#{:02x}{:02x}{:02x}".format(int(red * 255), int(green * 255), int(blue * 255))))
+    else:
+        for match in re.finditer(r"\.(\w+)", args):
+            name = match.group(1)
+            if name in _SYSTEM_COLORS and not args[match.end() : match.end() + 1] == ":":
+                found.append((match.start(), _SYSTEM_COLORS[name]))
+    return [value for _, value in sorted(found)]
+
+
+def _color(args: str) -> str | None:
+    colors = _colors(args)
+    return colors[0] if colors else None
 
 
 def _padding(node: ViewNode, args: str) -> None:

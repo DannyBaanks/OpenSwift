@@ -13,7 +13,7 @@ from pathlib import Path
 import json
 
 from openswift.parse import ParseError, parse_swiftui
-from openswift.render import render_svg
+from openswift.render import APPEARANCES, FRAMES, render_svg
 from openswift.session import PROVIDERS, focus, render_session, status_text
 from openswift.studio import serve, sketch
 
@@ -26,6 +26,8 @@ def main(argv: list[str] | None = None) -> int:
     draw.add_argument("source", type=Path)
     draw.add_argument("-o", "--output", type=Path, required=True)
     draw.add_argument("--device", default="iphone-14")
+    draw.add_argument("--appearance", default="dark", choices=APPEARANCES)
+    draw.add_argument("--frame", default="black", choices=list(FRAMES), help="case color, or none for the bare screen")
 
     lock = sub.add_parser("focus", help="lock the table to one view")
     lock.add_argument("target", type=Path)
@@ -44,11 +46,13 @@ def main(argv: list[str] | None = None) -> int:
     sketch_cmd = sub.add_parser("sketch", help="print the sketch as JSON")
     sketch_cmd.add_argument("source", type=Path, help="A .swift file, or - for stdin")
     sketch_cmd.add_argument("--device", default="iphone-14")
+    sketch_cmd.add_argument("--appearance", default="dark", choices=APPEARANCES)
+    sketch_cmd.add_argument("--frame", default="black", choices=list(FRAMES))
 
     args = parser.parse_args(argv)
     try:
         if args.cmd == "draw":
-            return _draw(args.source, args.output, args.device)
+            return _draw(args.source, args.output, args.device, args.appearance, args.frame)
         if args.cmd == "focus":
             root = focus(args.target, args.allow, args.intent, args.provider)
             print(root)
@@ -61,7 +65,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.cmd == "sketch":
             text = sys.stdin.read() if str(args.source) == "-" else args.source.read_text(encoding="utf-8")
-            print(json.dumps(sketch(text, args.device)))
+            print(json.dumps(sketch(text, args.device, args.appearance, args.frame)))
             return 0
         print(status_text())
         return 0
@@ -70,10 +74,10 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
 
-def _draw(source: Path, output: Path, device_id: str = "iphone-14") -> int:
+def _draw(source: Path, output: Path, device_id: str = "iphone-14", appearance: str = "dark", frame: str = "black") -> int:
     root = parse_swiftui(source.read_text(encoding="utf-8"))
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(render_svg(root, device_id), encoding="utf-8")
+    output.write_text(render_svg(root, device_id, appearance, frame), encoding="utf-8")
     print(output)
     return 0
 

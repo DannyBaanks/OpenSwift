@@ -86,7 +86,7 @@ PYTHONPATH="$OPENSWIFT_DIR" python3 -m openswift studio \
   "/ruta/a/tu/proyecto" --port 8765
 ```
 
-Abre `http://127.0.0.1:8765`. El servidor sólo acepta los hosts locales esperados, bloquea orígenes externos y comprueba que las rutas permanezcan dentro del proyecto. Si hay una `.ui-session/target.json`, también aplica su lista de escritura permitida.
+Abre `http://127.0.0.1:8765`. El Studio web incluye selector de dispositivo, modo *Live* (redibuja al escribir), tema claro/oscuro, aviso de cambios sin guardar y un panel **Session** con el objetivo activo. En `examples/` hay pantallas de muestra (`login`, `settings`, `dashboard`). El servidor sólo acepta los hosts locales esperados, bloquea orígenes externos y comprueba que las rutas permanezcan dentro del proyecto. Si hay una `.ui-session/target.json`, también aplica su lista de escritura permitida.
 
 ## CLI
 
@@ -103,7 +103,7 @@ PYTHONPATH="$PWD" python3 -m openswift sketch examples/hello.swift \
 PYTHONPATH="$PWD" python3 -m openswift --help
 ```
 
-Dispositivos incluidos: `iphone-11`, `iphone-12`, `iphone-13`, `iphone-14`, `iphone-14-plus`, `iphone-14-pro`, `iphone-15`, `iphone-16` e `iphone-16-pro`.
+Dispositivos incluidos: `iphone-11`, `iphone-12`, `iphone-13`, `iphone-14`, `iphone-14-plus`, `iphone-14-pro`, `iphone-15`, `iphone-15-plus`, `iphone-15-pro`, `iphone-16`, `iphone-16-plus`, `iphone-16-pro` e `iphone-16-pro-max`.
 
 ## Qué dibuja
 

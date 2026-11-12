@@ -8,6 +8,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from openswift.devices import DEVICES
 from openswift.parse import ParseError, ViewNode, parse_swiftui
 from openswift.render import render_svg
 
@@ -84,6 +85,27 @@ def _session_allows_write(root: Path, path: Path) -> bool:
         writable.extend(str((target.parent / item).resolve()) for item in record.get("allowed", []))
     resolved = path.resolve()
     return any(resolved == Path(item).resolve() for item in writable)
+
+
+def _session_info(root: Path) -> dict | None:
+    """A small, read-only summary of the active .ui-session for the panel."""
+    session = root / ".ui-session"
+    record_path = session / "target.json"
+    if not record_path.is_file():
+        return None
+    try:
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    intent = session / "intent.md"
+    return {
+        "target": record.get("target", ""),
+        "allowed": record.get("allowed") or [],
+        "provider": record.get("provider", ""),
+        "iteration": record.get("iteration", 0),
+        "sha256": record.get("preview_sha256", ""),
+        "intent": intent.read_text(encoding="utf-8").strip() if intent.is_file() else "",
+    }
 
 
 def _files(root: Path) -> list[str]:
@@ -165,6 +187,12 @@ def make_server(project: Path, host: str = "127.0.0.1", port: int = 8765) -> Thr
                 return
             if url.path == "/api/files":
                 self._json(200, {"root": str(project), "files": _files(project)})
+                return
+            if url.path == "/api/devices":
+                self._json(200, {"devices": [{"id": d.id, "name": d.name} for d in DEVICES.values()]})
+                return
+            if url.path == "/api/session":
+                self._json(200, {"session": _session_info(project)})
                 return
             if url.path == "/api/file":
                 rel = parse_qs(url.query).get("path", [""])[0]

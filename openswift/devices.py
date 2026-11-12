@@ -123,6 +123,42 @@ DEVICES: dict[str, Device] = {
             has_action_button=True, has_camera_control=True,
             status_bar_height=52, home_indicator_height=5
         ),
+        # iPhone 15 Plus - Dynamic Island, pantalla grande
+        Device(
+            "iphone-15-plus", "iPhone 15 Plus", 430, 932,
+            NotchType.DYNAMIC_ISLAND,
+            bezel_top=30, bezel_bottom=18, bezel_side=14,
+            corner_radius=46, screen_radius=34,
+            has_action_button=False, has_camera_control=False,
+            status_bar_height=52, home_indicator_height=5
+        ),
+        # iPhone 15 Pro - Dynamic Island + Action Button
+        Device(
+            "iphone-15-pro", "iPhone 15 Pro", 393, 852,
+            NotchType.DYNAMIC_ISLAND,
+            bezel_top=28, bezel_bottom=16, bezel_side=12,
+            corner_radius=42, screen_radius=30,
+            has_action_button=True, has_camera_control=False,
+            status_bar_height=52, home_indicator_height=5
+        ),
+        # iPhone 16 Plus - Dynamic Island + Camera Control
+        Device(
+            "iphone-16-plus", "iPhone 16 Plus", 430, 932,
+            NotchType.DYNAMIC_ISLAND,
+            bezel_top=30, bezel_bottom=18, bezel_side=14,
+            corner_radius=46, screen_radius=34,
+            has_action_button=False, has_camera_control=True,
+            status_bar_height=52, home_indicator_height=5
+        ),
+        # iPhone 16 Pro Max
+        Device(
+            "iphone-16-pro-max", "iPhone 16 Pro Max", 440, 956,
+            NotchType.DYNAMIC_ISLAND,
+            bezel_top=28, bezel_bottom=16, bezel_side=12,
+            corner_radius=44, screen_radius=32,
+            has_action_button=True, has_camera_control=True,
+            status_bar_height=52, home_indicator_height=5
+        ),
     )
 }
 

@@ -13,32 +13,45 @@
     --accent: #111;
     --orange: #e36a1e;
   }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17140f; --panel: #1f1b15; --line: #342e25; --ink: #f1ece2; --muted: #9a9082; --accent: #f1ece2;
+      --surface: #25201a; --side: #1b1813; --code: #1a1713; --codeink: #eadfcf; --dock: #1b1813; --dockink: #c9bfae;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17140f; --panel: #1f1b15; --line: #342e25; --ink: #f1ece2; --muted: #9a9082; --accent: #f1ece2;
+    --surface: #25201a; --side: #1b1813; --code: #1a1713; --codeink: #eadfcf; --dock: #1b1813; --dockink: #c9bfae;
+  }
+  :root { --surface: #fff; --side: #faf7f2; --code: #fff; --codeink: #241e18; --dock: #fbf8f3; --dockink: #4d463e; }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
     font: 13px/1.4 ui-sans-serif, system-ui, sans-serif; }
   body { display: grid; grid-template-rows: 48px 1fr 28px; }
   header { display: flex; align-items: center; gap: 8px; padding: 0 12px; border-bottom: 1px solid var(--line); }
   header strong { margin-right: 8px; }
-  button, select { border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 6px 10px; font: inherit; cursor: pointer; }
-  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button, select { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 8px; padding: 6px 10px; font: inherit; cursor: pointer; }
+  button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
   button:disabled { opacity: 0.45; cursor: default; }
-  #search { margin-left: auto; width: min(420px, 40vw); border: 1px solid var(--line); border-radius: 999px; padding: 7px 12px; background: #fff; }
+  #search { margin-left: auto; width: min(420px, 40vw); border: 1px solid var(--line); border-radius: 999px; padding: 7px 12px; background: var(--surface); color: var(--ink); }
   main { display: grid; grid-template-columns: 48px 220px 1fr 340px; min-height: 0; }
   nav { border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 6px; padding-top: 8px; }
   nav button { width: 34px; height: 34px; padding: 0; }
-  nav button.on { background: #fff; border-color: #cfc6b8; }
-  #side { border-right: 1px solid var(--line); overflow: auto; padding: 8px; background: #faf7f2; }
+  nav button.on { background: var(--surface); border-color: #cfc6b8; }
+  #side { border-right: 1px solid var(--line); overflow: auto; padding: 8px; background: var(--side); }
   #side h2 { font-size: 11px; letter-spacing: 0.08em; color: var(--muted); margin: 8px 4px; }
   .file { display: block; width: 100%; text-align: left; border: 0; background: transparent; border-radius: 6px; padding: 5px 6px; }
-  .file.on { background: #fff; }
+  .file { color: var(--ink); }
+  .file.on { background: var(--surface); }
+  .file.dirty::after { content: " •"; color: var(--orange); }
   #editorwrap { display: grid; grid-template-rows: 36px 1fr 180px; min-width: 0; min-height: 0; }
   #tab { display: flex; align-items: center; gap: 8px; padding: 0 10px; background: var(--panel); border-bottom: 1px solid var(--line); }
-  #code { width: 100%; height: 100%; border: 0; resize: none; padding: 12px 14px; font: 13px/1.5 ui-monospace, monospace; background: #fff; color: #241e18; }
-  #dock { border-top: 1px solid var(--line); background: #fbf8f3; display: grid; grid-template-rows: 32px 1fr; min-height: 0; }
+  #code { width: 100%; height: 100%; border: 0; resize: none; padding: 12px 14px; font: 13px/1.5 ui-monospace, monospace; background: var(--code); color: var(--codeink); tab-size: 4; }
+  #dock { border-top: 1px solid var(--line); background: var(--dock); display: grid; grid-template-rows: 32px 1fr; min-height: 0; }
   #dock nav { flex-direction: row; border: 0; padding: 0 8px; align-items: end; gap: 4px; }
   #dock nav button { width: auto; height: auto; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; }
   #dock nav button.on { border-bottom-color: var(--orange); }
-  #dockpre { margin: 0; padding: 8px 12px; overflow: auto; font: 12px/1.45 ui-monospace, monospace; color: #4d463e; white-space: pre-wrap; }
+  #dockpre { margin: 0; padding: 8px 12px; overflow: auto; font: 12px/1.45 ui-monospace, monospace; color: var(--dockink); white-space: pre-wrap; }
   #stage { border-left: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px; min-width: 0; }
   #stage .tools { display: flex; gap: 6px; }
   #phone { width: 230px; height: 470px; border: 8px solid #111; border-radius: 32px; background: #fff; overflow: hidden; box-shadow: 0 16px 40px rgba(0,0,0,.12); }
@@ -47,6 +60,13 @@
   #phone svg { width: 100%; height: auto; display: block; }
   footer { display: flex; justify-content: space-between; align-items: center; padding: 0 12px; color: var(--muted); border-top: 1px solid var(--line); font-size: 12px; }
   #empty { color: var(--muted); padding: 24px; }
+  .badge { display: inline-block; min-width: 16px; padding: 0 5px; margin-left: 4px; border-radius: 999px; background: var(--orange); color: #fff; font-size: 11px; line-height: 16px; text-align: center; }
+  .badge[hidden] { display: none; }
+  .toggle { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; }
+  #devicewrap { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+  #status { color: var(--muted); }
+  #status.err { color: #d23b2e; }
+  @media (max-width: 1000px) { main { grid-template-columns: 48px 160px 1fr 280px; } #search { display: none; } }
 </style>
 </head>
 <body>
@@ -54,6 +74,9 @@
   <strong>OpenSwift Studio</strong>
   <button id="run" class="primary" disabled>Run</button>
   <button id="save" disabled>Save</button>
+  <label class="toggle" title="Redraw while you type"><input type="checkbox" id="live"> Live</label>
+  <label id="devicewrap">Device <select id="device"></select></label>
+  <button id="theme" title="Toggle light/dark">Theme</button>
   <input id="search" placeholder="Filter files in this project" />
 </header>
 <main>
@@ -68,7 +91,8 @@
       <nav>
         <button data-pane="debug" class="on">Debugger</button>
         <button data-pane="output">Output</button>
-        <button data-pane="problems">Problems</button>
+        <button data-pane="problems">Problems<span class="badge" id="pbadge" hidden>0</span></button>
+        <button data-pane="session">Session</button>
         <button data-pane="console">Console</button>
       </nav>
       <pre id="dockpre"></pre>
@@ -85,6 +109,7 @@
 </main>
 <footer>
   <span id="project"></span>
+  <span id="status">ready</span>
   <span>approximate-web · not a Swift debugger</span>
 </footer>
 <script>
@@ -95,9 +120,26 @@ const screen = document.querySelector("#screen");
 const dockpre = document.querySelector("#dockpre");
 const search = document.querySelector("#search");
 let current = "";
+let saved = "";
+let liveTimer = null;
+const statusEl = document.querySelector("#status");
+const deviceSelect = document.querySelector("#device");
+const root = document.documentElement;
+function setStatus(text, bad) { statusEl.textContent = text; statusEl.classList.toggle("err", !!bad); }
+function isDirty() { return !!current && code.value !== saved; }
+function markDirty() {
+  tab.textContent = current ? current + (isDirty() ? " •" : "") : "No file";
+  drawFiles();
+}
+try { const t = localStorage.getItem("openswift-theme"); if (t) root.dataset.theme = t; } catch (e) {}
+document.querySelector("#theme").onclick = () => {
+  const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  root.dataset.theme = dark ? "light" : "dark";
+  try { localStorage.setItem("openswift-theme", root.dataset.theme); } catch (e) {}
+};
 let files = [];
 let pane = "debug";
-const panes = { debug: "No Swift runtime.\nOpen a file and press Run.\nThe tree of the sketch shows up here. Breakpoints are not executed.", output: "", problems: "", console: "" };
+const panes = { session: "No active .ui-session in this project.\nRun `openswift focus <file> --intent \"...\"` to lock the table to one view.", debug: "No Swift runtime.\nOpen a file and press Run.\nThe tree of the sketch shows up here. Breakpoints are not executed.", output: "", problems: "", console: "" };
 
 async function loadFiles() {
   const res = await fetch("/api/files");
@@ -111,18 +153,20 @@ function drawFiles() {
   filesEl.innerHTML = "";
   files.filter(f => f.toLowerCase().includes(q)).forEach(f => {
     const b = document.createElement("button");
-    b.className = "file" + (f === current ? " on" : "");
+    b.className = "file" + (f === current ? " on" : "") + (f === current && isDirty() ? " dirty" : "");
     b.textContent = f;
     b.onclick = () => openFile(f);
     filesEl.appendChild(b);
   });
 }
 async function openFile(path) {
+  if (isDirty() && !confirm("Discard unsaved changes in " + current + "?")) return;
   const res = await fetch("/api/file?path=" + encodeURIComponent(path));
   const data = await res.json();
   if (data.error) { log("console", data.error); return; }
   current = path;
   code.value = data.text;
+  saved = data.text;
   tab.textContent = path;
   document.querySelector("#run").disabled = false;
   document.querySelector("#save").disabled = false;
@@ -130,9 +174,11 @@ async function openFile(path) {
   log("console", "opened " + path);
 }
 async function run() {
-  const res = await fetch("/api/render", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ source: code.value }) });
+  const res = await fetch("/api/render", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ source: code.value, device: deviceSelect.value }) });
   const data = await res.json();
   if (!data.ok) {
+    setBadge(1);
+    setStatus("could not draw: " + data.error, true);
     panes.problems = data.error;
     panes.debug = data.error;
     showPane();
@@ -141,10 +187,46 @@ async function run() {
   }
   screen.innerHTML = data.svg;
   panes.debug = "Sketch tree (not a call stack)\n\n" + fmt(data.tree, 0);
+  setBadge(data.problems.length);
+  setStatus("drawn " + new Date().toLocaleTimeString());
   panes.problems = data.problems.length ? data.problems.join("\n") : "No problems in the known views.";
   panes.output = "rendered " + current + "\nprovider approximate-web";
   showPane();
   log("console", "rendered " + (current || "buffer"));
+}
+function setBadge(n) {
+  const b = document.querySelector("#pbadge");
+  b.textContent = n;
+  b.hidden = !n;
+}
+async function loadDevices() {
+  try {
+    const data = await (await fetch("/api/devices")).json();
+    data.devices.forEach((d) => {
+      const opt = document.createElement("option");
+      opt.value = d.id;
+      opt.textContent = d.name;
+      deviceSelect.appendChild(opt);
+    });
+    deviceSelect.value = "iphone-14";
+  } catch (e) { /* the picker stays empty; render falls back to the default frame */ }
+}
+async function loadSession() {
+  try {
+    const { session } = await (await fetch("/api/session")).json();
+    if (!session) return;
+    panes.session = [
+      "target:    " + session.target,
+      "allowed:   " + (session.allowed.join(", ") || "(none)"),
+      "provider:  " + session.provider,
+      "iteration: " + session.iteration,
+      "preview:   " + (session.sha256 || "(none yet)"),
+      "intent:    " + (session.intent || "(none)"),
+      "",
+      "Saves outside target and allowed are refused while this session exists.",
+    ].join("\n");
+    showPane();
+  } catch (e) {}
 }
 function fmt(node, depth) {
   if (!node) return "";
@@ -168,6 +250,8 @@ document.querySelector("#save").onclick = async () => {
   if (!current) return;
   const res = await fetch("/api/save", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ path: current, text: code.value }) });
   const data = await res.json();
+  if (data.ok) { saved = code.value; markDirty(); setStatus("saved " + current); }
+  else setStatus(data.error, true);
   log("console", data.ok ? "saved " + current : data.error);
 };
 search.oninput = drawFiles;
@@ -175,12 +259,28 @@ document.querySelectorAll("[data-zoom]").forEach(b => b.onclick = () => {
   document.querySelector("#phone").style.transform = "scale(" + b.dataset.zoom + ")";
   document.querySelector("#phone").style.transformOrigin = "top center";
 });
+code.addEventListener("input", () => {
+  markDirty();
+  if (document.querySelector("#live").checked) {
+    clearTimeout(liveTimer);
+    liveTimer = setTimeout(() => run().catch((err) => setStatus(String(err), true)), 400);
+  }
+});
+deviceSelect.addEventListener("change", () => { if (code.value) run(); });
+window.addEventListener("beforeunload", (e) => { if (isDirty()) { e.preventDefault(); e.returnValue = ""; } });
 code.addEventListener("keydown", (e) => {
+  if (e.key === "Tab" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+    e.preventDefault();
+    code.setRangeText("    ", code.selectionStart, code.selectionEnd, "end");
+    markDirty();
+  }
   if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); run(); }
   if ((e.metaKey || e.ctrlKey) && e.key === "s") { e.preventDefault(); document.querySelector("#save").click(); }
 });
 showPane();
 loadFiles();
+loadDevices();
+loadSession();
 </script>
 </body>
 </html>

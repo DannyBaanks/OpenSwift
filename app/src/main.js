@@ -58,8 +58,12 @@ const DEVICES = [
   ["iphone-14-plus", "iPhone 14 Plus"],
   ["iphone-14-pro", "iPhone 14 Pro · isla"],
   ["iphone-15", "iPhone 15"],
+  ["iphone-15-plus", "iPhone 15 Plus"],
+  ["iphone-15-pro", "iPhone 15 Pro"],
   ["iphone-16", "iPhone 16"],
+  ["iphone-16-plus", "iPhone 16 Plus"],
   ["iphone-16-pro", "iPhone 16 Pro"],
+  ["iphone-16-pro-max", "iPhone 16 Pro Max"],
 ];
 const deviceSelect = document.querySelector("#device");
 DEVICES.forEach(([id, name]) => {

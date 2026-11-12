@@ -103,11 +103,16 @@ PYTHONPATH="$PWD" python3 -m openswift sketch examples/hello.swift \
 PYTHONPATH="$PWD" python3 -m openswift draw examples/dashboard.swift \
   --device iphone-16-pro --appearance light --frame natural --output /tmp/dash.svg
 
+# iPad en horizontal, y la sesión también acepta --appearance/--frame/--orientation
+PYTHONPATH="$PWD" python3 -m openswift draw examples/gallery.swift \
+  --device ipad-pro-11 --orientation landscape --output /tmp/gallery.svg
+PYTHONPATH="$PWD" python3 -m openswift render --device iphone-16 --appearance light --orientation landscape
+
 # Ver las opciones disponibles
 PYTHONPATH="$PWD" python3 -m openswift --help
 ```
 
-Dispositivos incluidos: `iphone-11`, `iphone-12`, `iphone-13`, `iphone-14`, `iphone-14-plus`, `iphone-14-pro`, `iphone-15`, `iphone-15-plus`, `iphone-15-pro`, `iphone-16`, `iphone-16-plus`, `iphone-16-pro` e `iphone-16-pro-max`.
+Dispositivos incluidos: `iphone-11`, `iphone-12`, `iphone-13`, `iphone-14`, `iphone-14-plus`, `iphone-14-pro`, `iphone-15`, `iphone-15-plus`, `iphone-15-pro`, `iphone-16`, `iphone-16-plus`, `iphone-16-pro` e `iphone-16-pro-max`, más `ipad-10`, `ipad-air-11`, `ipad-pro-11` e `ipad-pro-13`. Con `--orientation landscape` cualquiera se dibuja de lado.
 
 ## Qué dibuja
 
@@ -122,7 +127,9 @@ Dispositivos incluidos: `iphone-11`, `iphone-12`, `iphone-13`, `iphone-14`, `iph
 | `Toggle`, `TextField`, `SecureField`, `Label`, `Image` | Interruptor iOS, campos redondeados, icono marcador |
 | Padding, fondo, degradados (`LinearGradient`), `cornerRadius`, `clipShape`, `shadow`, `opacity`, `frame(width:height:maxWidth:)` | Modificadores compatibles del preview |
 | `.font(.title…)`, `.fontWeight`, colores del sistema (`.blue`, `.gray`, `.secondary`…), `Color(hex:)`, `.buttonStyle` | Tipografía y color estilo iOS |
-| `.sheet`, `.overlay`, bindings, animaciones y vistas propias | No se ejecutan; pueden aparecer como cajas o avisos |
+| `ForEach` (rangos, arrays literales; si no, 3 copias) y vistas propias del mismo archivo (`Tile()`) | Se expanden con su `body` |
+| `Image(systemName:)` / `Label(systemImage:)` | ~20 SF Symbols redibujados (heart, star, bell, house, person, gearshape…); el resto, un icono marcador |
+| `.sheet`, bindings, animaciones | No se ejecutan; pueden aparecer como cajas o avisos |
 
 La salida ayuda a conversar sobre composición y proporciones. No representa fielmente el comportamiento, tipografía ni layout final de SwiftUI en iOS.
 

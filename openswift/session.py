@@ -10,7 +10,7 @@ from pathlib import Path
 from openswift.devices import get_device
 from openswift.parse import parse_swiftui
 from openswift.png import fill, write_png
-from openswift.render import layout, render_svg
+from openswift.render import _PALETTE, FRAMES, layout, render_svg
 
 PROVIDERS = ("approximate-web", "miniswift", "xcode-preview")
 SESSION_DIR = ".ui-session"
@@ -55,7 +55,13 @@ def load(cwd: Path | None = None) -> tuple[Path, dict]:
     return root, json.loads(path.read_text(encoding="utf-8"))
 
 
-def render_session(cwd: Path | None = None, device_id: str = "iphone-14") -> Path:
+def render_session(
+    cwd: Path | None = None,
+    device_id: str = "iphone-14",
+    appearance: str = "dark",
+    frame: str = "black",
+    orientation: str = "portrait",
+) -> Path:
     root, record = load(cwd)
     if record.get("provider") != "approximate-web":
         raise ValueError(record.get("provider"))
@@ -63,10 +69,10 @@ def render_session(cwd: Path | None = None, device_id: str = "iphone-14") -> Pat
     source = target.read_text(encoding="utf-8")
     (root / "source.swift").write_text(source, encoding="utf-8")
     tree = parse_swiftui(source)
-    svg = render_svg(tree, device_id)
+    svg = render_svg(tree, device_id, appearance, frame, orientation)
     (root / "preview.svg").write_text(svg, encoding="utf-8")
     png_path = root / "preview.png"
-    _write_preview_png(tree, png_path, device_id)
+    _write_preview_png(tree, png_path, device_id, appearance, frame, orientation)
     digest = hashlib.sha256(png_path.read_bytes()).hexdigest()
     (root / "preview.sha256").write_text(digest + "\n", encoding="utf-8")
     iterations = root / "iterations"
@@ -98,64 +104,78 @@ def status_text(cwd: Path | None = None) -> str:
     return "\n".join(lines)
 
 
-def _write_preview_png(tree, path: Path, device_id: str = "iphone-14") -> None:
-    device = get_device(device_id)
+def _write_preview_png(
+    tree,
+    path: Path,
+    device_id: str = "iphone-14",
+    appearance: str = "dark",
+    frame: str = "black",
+    orientation: str = "portrait",
+) -> None:
+    device = get_device(device_id, orientation)
+    palette = _PALETTE[appearance if appearance in _PALETTE else "dark"]
+    case = FRAMES.get(frame, FRAMES["black"])
+    landscape = orientation == "landscape" and device.idiom == "phone"
     SCREEN_W = device.width
     SCREEN_H = device.height
-    BEZEL = device.bezel_side
-    
-    # Phone physical dimensions
-    phone_w = SCREEN_W + device.bezel_side * 2
-    phone_h = SCREEN_H + device.bezel_top + device.bezel_bottom
-    
-    # Screen position within phone
+
+    width = SCREEN_W + device.bezel_side * 2
+    height = SCREEN_H + device.bezel_top + device.bezel_bottom
     screen_x = device.bezel_side
     screen_y = device.bezel_top
-    
-    width = phone_w
-    height = phone_h
-    rgb = bytearray([28, 28, 30]) * (width * height)
-    
-    # Phone body
-    fill(rgb, width, 4, 4, width - 8, height - 8, (10, 10, 10))
-    # Screen area
-    fill(rgb, width, screen_x, screen_y, SCREEN_W, SCREEN_H, (0, 0, 0))
-    
-    # Notch or Dynamic Island
-    _draw_notch_png(rgb, width, device, screen_x, screen_y, SCREEN_W)
-    
-    # Status bar time
-    _stamp(rgb, width, screen_x + 16, screen_y + device.status_bar_height - 14, "9:41", (255, 255, 255))
-    
-    # Content boxes
-    boxes = layout(tree, device_id)
 
+    # A PNG has no transparency: "none" keeps the page color where the case would be.
+    page = (28, 28, 30)
+    body = page if case["body"] == "none" else _hex(case["body"])
+    rgb = bytearray(page) * (width * height)
+    fill(rgb, width, 4, 4, width - 8, height - 8, body)
+    fill(rgb, width, screen_x, screen_y, SCREEN_W, SCREEN_H, _hex(palette["screen"]))
+
+    if not landscape:
+        _draw_notch_png(rgb, width, device, screen_x, screen_y, SCREEN_W)
+        _stamp(rgb, width, screen_x + 16, screen_y + device.status_bar_height - 14, "9:41", _hex(palette["status"]))
+
+    boxes = layout(tree, device_id, orientation)
+    ink_default = _hex(palette["primary"])
     for box in boxes:
         node = box.node
+        x, y, w, h = int(box.x), int(box.y), int(box.w), int(box.h)
         if node.background:
             back = _hex(node.background)
             if node.bg_opacity < 1:
-                back = tuple(int(c * node.bg_opacity) for c in back)
-            fill(rgb, width, int(box.x), int(box.y), int(box.w), int(box.h), back)
-        label = node.text if node.kind in {"Text", "Button"} else ""
-        ink = _hex(node.color) if node.color else (255, 255, 255)
-        if node.kind == "Button" and label:
+                screen = _hex(palette["screen"])
+                back = tuple(int(c * node.bg_opacity + s * (1 - node.bg_opacity)) for c, s in zip(back, screen))
+            fill(rgb, width, x, y, w, h, back)
+        ink = _hex(node.color) if node.color else ink_default
+        if node.kind == "Text" and node.text:
+            _stamp(rgb, width, x + 8, y + 8, node.text, ink)
+        elif node.kind == "Button" and node.text:
             if not node.background:
                 ink = _hex(node.color) if node.color else (10, 132, 255)
             elif not node.color:
                 ink = (255, 255, 255)
-        if label:
-            _stamp(rgb, width, int(box.x + 8), int(box.y + 8), label, ink)
-        elif node.kind not in {"VStack", "HStack", "ZStack", "Spacer"}:
-            fill(rgb, width, int(box.x), int(box.y), max(int(box.w), 48), 16, (34, 34, 34))
-            _stamp(rgb, width, int(box.x + 4), int(box.y + 4), node.kind, (170, 170, 170))
-    
-    # Home indicator
+            _stamp(rgb, width, x + 8, y + 8, node.text, ink)
+        elif node.kind in {"TextField", "SecureField"}:
+            fill(rgb, width, x, y, w, h, _hex(palette["field"]))
+            _stamp(rgb, width, x + 12, y + max(8, h // 2 - 4), node.text or "text", _hex(palette["secondary"]))
+        elif node.kind == "Toggle":
+            _stamp(rgb, width, x + 8, y + max(8, h // 2 - 4), node.text, ink)
+            fill(rgb, width, x + w - 51, y + h // 2 - 15, 51, 31, (48, 209, 88))
+            fill(rgb, width, x + w - 31, y + h // 2 - 12, 25, 25, (255, 255, 255))
+        elif node.kind in {"Label", "Image"}:
+            fill(rgb, width, x, y + max(0, (h - 24) // 2), 24, 24, ink if node.symbol else (10, 132, 255))
+            if node.text:
+                _stamp(rgb, width, x + 34, y + max(8, h // 2 - 4), node.text, ink)
+        elif node.kind == "Divider":
+            fill(rgb, width, x, y + h // 2, w, 1, _hex(palette["divider"]))
+        elif node.kind not in {"VStack", "HStack", "ZStack", "Spacer", "Group"} and not node.children:
+            fill(rgb, width, x, y, max(w, 48), 16, _hex(palette["field"]))
+            _stamp(rgb, width, x + 4, y + 4, node.kind, _hex(palette["secondary"]))
+
     _draw_home_indicator_png(rgb, width, device, screen_x, screen_y, SCREEN_W, SCREEN_H)
-    
-    # Side buttons
-    _draw_side_buttons_png(rgb, width, device, screen_x, screen_y, SCREEN_W, SCREEN_H)
-    
+    if device.idiom == "phone" and not landscape:
+        _draw_side_buttons_png(rgb, width, device, screen_x, screen_y, SCREEN_W, SCREEN_H)
+
     write_png(path, width, height, rgb)
 
 

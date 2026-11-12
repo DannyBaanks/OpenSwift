@@ -6,7 +6,7 @@ import copy
 import html
 from dataclasses import dataclass
 
-from openswift.devices import NotchType, get_device
+from openswift.devices import ORIENTATIONS, NotchType, get_device
 from openswift.parse import ViewNode
 
 APPEARANCES = ("dark", "light")
@@ -37,6 +37,41 @@ _WEIGHTS = {
 }
 _FONT = "-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',ui-sans-serif,system-ui,sans-serif"
 _SAFE_BOTTOM = 34
+
+
+# A few SF Symbols redrawn as 24x24 paths. Others fall back to a tinted marker.
+_SYMBOLS = {
+    "heart": "M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z",
+    "star": "M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z",
+    "gearshape": "M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1",
+    "bell": "M6 17h12l-1.5-2V10a4.5 4.5 0 0 0-9 0v5zM10 20a2 2 0 0 0 4 0",
+    "house": "M4 11l8-7 8 7v9h-5v-6H9v6H4z",
+    "person": "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 20c0-4 4-6 8-6s8 2 8 6",
+    "magnifyingglass": "M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13zM15.5 15.5L20 20",
+    "plus": "M12 5v14M5 12h14",
+    "xmark": "M6 6l12 12M18 6L6 18",
+    "checkmark": "M5 12.5l4.5 4.5L19 7",
+    "airplane": "M21 15l-8-4V5a1.5 1.5 0 0 0-3 0v6l-8 4v2l8-2v3l-2 1.5V21l3.5-1 3.5 1v-1.5L13 18v-3l8 2z",
+    "bolt": "M13 3L5 13h6l-1 8 8-10h-6z",
+    "envelope": "M4 6h16v12H4zM4 7l8 6 8-6",
+    "lock": "M6 11h12v9H6zM8.5 11V8a3.5 3.5 0 0 1 7 0v3",
+    "trash": "M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13",
+    "camera": "M4 8h4l1.5-2h5L16 8h4v11H4zM12 17a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z",
+    "chevron": "M9 5l7 7-7 7",
+    "wifi": "M3 9a13 13 0 0 1 18 0M6 12.5a8.5 8.5 0 0 1 12 0M9 16a4 4 0 0 1 6 0M12 19.5v.01",
+}
+_SYMBOL_ALIASES = {"gear": "gearshape", "house": "house", "chevron.right": "chevron", "chevron.forward": "chevron"}
+_FILLED_OK = {"heart", "star", "bolt", "house", "bell", "person", "lock", "camera", "airplane"}
+
+
+def symbol_path(name: str) -> tuple[str, bool] | None:
+    """The path for an SF Symbol name and whether its .fill variant was asked for."""
+    base = name.split(".")[0]
+    key = _SYMBOL_ALIASES.get(name) or _SYMBOL_ALIASES.get(base) or base
+    path = _SYMBOLS.get(key)
+    if path is None:
+        return None
+    return path, ".fill" in name and key in _FILLED_OK
 
 
 @dataclass
@@ -78,7 +113,7 @@ def measure(node: ViewNode, max_w: float) -> tuple[float, float]:
         elif node.kind == "HStack":
             gaps = node.spacing * max(0, len(sizes) - 1)
             width = sum(w for w, _ in sizes) + gaps
-            if any(child.kind == "Spacer" or child.frame_max_width for child in node.children):
+            if any(child.kind == "Spacer" or _is_flex(child) for child in node.children):
                 width = inner_w
             height = max((h for _, h in sizes), default=0)
         else:
@@ -96,7 +131,7 @@ def measure(node: ViewNode, max_w: float) -> tuple[float, float]:
         width, height = 28, 28
     else:
         width, height = min(inner_w, 160), 28
-    if node.frame_max_width:
+    if _is_flex(node):
         width = inner_w
     if node.frame_width:
         width = min(node.frame_width, 640)
@@ -105,6 +140,13 @@ def measure(node: ViewNode, max_w: float) -> tuple[float, float]:
     width = min(width + node.pad_left + node.pad_right, max_w)
     height = height + node.pad_top + node.pad_bottom
     return width, height
+
+
+def _is_flex(node: ViewNode) -> bool:
+    """frame(maxWidth: .infinity), also through a custom view's wrapper."""
+    if node.frame_max_width:
+        return True
+    return node.kind == "Group" and len(node.children) == 1 and _is_flex(node.children[0])
 
 
 def _first_text(node: ViewNode) -> str:
@@ -139,7 +181,7 @@ def _place(node: ViewNode, x: float, y: float, w: float, h: float, out: list[Box
         cursor = iy
         for child, (cw, ch) in zip(node.children, sizes):
             drawn_h = share if child.kind == "Spacer" else ch
-            child_w = iw if child.frame_max_width or child.kind == "Divider" else min(cw, iw)
+            child_w = iw if _is_flex(child) or child.kind == "Divider" else min(cw, iw)
             if node.alignment == "leading":
                 child_x = ix
             elif node.alignment == "trailing":
@@ -150,7 +192,7 @@ def _place(node: ViewNode, x: float, y: float, w: float, h: float, out: list[Box
             cursor += drawn_h + node.spacing
     elif node.kind == "HStack":
         sizes = [measure(child, iw) for child in node.children]
-        flex = [child for child in node.children if child.frame_max_width and child.kind != "Spacer"]
+        flex = [child for child in node.children if _is_flex(child) and child.kind != "Spacer"]
         spacers = sum(1 for child in node.children if child.kind == "Spacer")
         fixed = sum(cw for child, (cw, _) in zip(node.children, sizes) if child.kind != "Spacer" and child not in flex)
         gaps = node.spacing * max(0, len(node.children) - 1)
@@ -175,7 +217,20 @@ def _place(node: ViewNode, x: float, y: float, w: float, h: float, out: list[Box
             _place(child, ix + (iw - min(cw, iw)) / 2, iy + (ih - min(ch, ih)) / 2, min(cw, iw), min(ch, ih), out)
 
 
-def _sensor(device, x: float, y: float, screen_w: int) -> str:
+def _sensor(device, x: float, y: float, screen_w: int, screen_h: int = 0, landscape: bool = False) -> str:
+    if landscape and device.notch_type != NotchType.NONE:
+        # Turned on its side the housing sits on the left edge.
+        if device.notch_type == NotchType.DYNAMIC_ISLAND:
+            top = y + (screen_h - 126) / 2
+            return (
+                f'<rect id="island" x="{x + 11:.1f}" y="{top:.1f}" width="36" height="126" rx="18" fill="#000"/>'
+                f'<circle cx="{x + 29:.1f}" cy="{top + 106:.1f}" r="5" fill="#0c0c14"/>'
+            )
+        length = 194 if device.notch_type == NotchType.CLASSIC else 156
+        top = y + (screen_h - length) / 2
+        return (
+            f'<path id="notch" fill="#000" d="M {x:.1f} {top:.1f} v {length} h 22 q 10 0 10 -10 v -{length - 20} q 0 -10 -10 -10 z"/>'
+        )
     if device.notch_type == NotchType.DYNAMIC_ISLAND:
         width, height = 126, 36
         island_x = x + (screen_w - width) / 2
@@ -201,10 +256,11 @@ def _sensor(device, x: float, y: float, screen_w: int) -> str:
 def _status_icons(device, x: float, y: float, screen_w: int, ink: str) -> str:
     """Clock on the left, signal, wifi and battery on the right of the status bar."""
     parts = []
-    baseline = y + device.status_bar_height - 16
-    clock_x = x + (46 if device.notch_type != NotchType.DYNAMIC_ISLAND else 52)
+    pad = device.idiom == "pad"
+    baseline = y + (device.status_bar_height - 6 if pad else device.status_bar_height - 16)
+    clock_x = x + (34 if pad else 46 if device.notch_type != NotchType.DYNAMIC_ISLAND else 52)
     parts.append(
-        f'<text x="{clock_x:.1f}" y="{baseline:.1f}" fill="{ink}" text-anchor="middle" '
+        f'<text x="{clock_x:.1f}" y="{baseline:.1f}" fill="{ink}" text-anchor="{"start" if pad else "middle"}" '
         f'font-family="{_FONT}" font-size="16" font-weight="600">9:41</text>'
     )
     right = x + screen_w - 22
@@ -243,28 +299,44 @@ SCREEN_TOP = 28
 BEZEL = 28
 
 
-def layout(root: ViewNode, device_id: str = "iphone-14") -> list[Box]:
+def layout(root: ViewNode, device_id: str = "iphone-14", orientation: str = "portrait") -> list[Box]:
     """Place the sketch on a screen. The root fills the screen under the status bar."""
     global SCREEN_W, SCREEN_H, SCREEN_TOP, BEZEL
-    device = get_device(device_id)
+    device = get_device(device_id, orientation)
+    landscape = orientation == "landscape"
     SCREEN_W, SCREEN_H = device.width, device.height
     SCREEN_TOP, BEZEL = device.bezel_top, device.bezel_side
     placed = copy.copy(root)
     placed.frame_max_width = True
     placed.frame_width = None
     placed.frame_height = None
-    placed.pad_top += device.status_bar_height + 6
-    placed.pad_bottom += _SAFE_BOTTOM
+    if landscape and device.idiom == "phone":
+        # No status bar on its side; the island or notch eats the left edge.
+        placed.pad_top += 12
+        placed.pad_left += 47
+        placed.pad_right += 47
+        placed.pad_bottom += 21
+    else:
+        placed.pad_top += device.status_bar_height + 6
+        placed.pad_bottom += 20 if device.idiom == "pad" else _SAFE_BOTTOM
     boxes: list[Box] = []
     _place(placed, BEZEL, SCREEN_TOP, SCREEN_W, SCREEN_H, boxes)
     return boxes
 
 
-def render_svg(root: ViewNode, device_id: str = "iphone-14", appearance: str = "dark", frame: str = "black") -> str:
-    device = get_device(device_id)
+def render_svg(
+    root: ViewNode,
+    device_id: str = "iphone-14",
+    appearance: str = "dark",
+    frame: str = "black",
+    orientation: str = "portrait",
+) -> str:
+    device = get_device(device_id, orientation)
+    landscape = orientation == "landscape"
+    phone_landscape = landscape and device.idiom == "phone"
     palette = _PALETTE.get(appearance, _PALETTE["dark"])
     case = FRAMES.get(frame, FRAMES["black"])
-    boxes = layout(root, device_id)
+    boxes = layout(root, device_id, orientation)
     bare = frame == "none"
     bezel_x, bezel_t, bezel_b = (0, 0, 0) if bare else (device.bezel_side, device.bezel_top, device.bezel_bottom)
     # layout() works in framed coordinates; shift for a frameless export.
@@ -295,11 +367,13 @@ def render_svg(root: ViewNode, device_id: str = "iphone-14", appearance: str = "
     for index, box in enumerate(boxes):
         body.extend(_paint(box, index, defs, palette, dx, dy))
     body.append("</g>")
-    body.append(_sensor(device, screen_x, screen_y, SCREEN_W))
-    body.append(_status_icons(device, screen_x, screen_y, SCREEN_W, palette["status"]))
+    body.append(_sensor(device, screen_x, screen_y, SCREEN_W, SCREEN_H, phone_landscape))
+    if not phone_landscape:
+        body.append(_status_icons(device, screen_x, screen_y, SCREEN_W, palette["status"]))
     body.append(_home_indicator(screen_x, screen_y, SCREEN_W, SCREEN_H, palette["status"]))
-    if not bare:
+    if not bare and device.idiom == "phone" and not landscape:
         body.extend(_side_buttons(device, screen_x, screen_y, case["edge"]))
+    if not bare:
         body.append(
             f'<text x="{screen_x + 16}" y="{phone_h - 8}" fill="#8e8e93" opacity="0.7" '
             f'font-family="{_FONT}" font-size="9">OpenSwift sketch \xb7 not compiled Swift</text>'
@@ -351,11 +425,11 @@ def _paint(box: Box, index: int, defs: list[str], palette: dict, dx: float, dy: 
         out.append(f'<rect x="{ix + iw - 51:.1f}" y="{iy + ih / 2 - 15.5:.1f}" width="51" height="31" rx="15.5" fill="#30d158"/>')
         out.append(f'<circle cx="{ix + iw - 17.5:.1f}" cy="{iy + ih / 2:.1f}" r="13.5" fill="#fff"/>')
     elif node.kind == "Label":
-        out.append(_icon(ix, iy + (ih - 24) / 2, 24, node.color or _BLUE))
+        out.append(_icon(ix, iy + (ih - 24) / 2, 24, node.color, node.symbol, primary))
         out.append(_text(node.text, ix + 34, iy + (ih - 17 * 1.35) / 2, iw - 34, 17, "regular", primary, node.opacity, "leading"))
     elif node.kind == "Image":
         size = min(iw, ih) or 28
-        out.append(_icon(ix, iy, size, node.color or _BLUE))
+        out.append(_icon(ix, iy, size, node.color, node.symbol, primary))
     elif node.kind == "Divider":
         out.append(f'<rect x="{x:.1f}" y="{y + h / 2:.1f}" width="{w:.1f}" height="1" fill="{palette["divider"]}"/>')
     elif node.kind not in _CONTAINERS and node.kind != "Spacer" and not node.children:
@@ -399,8 +473,18 @@ def _text(text: str, x: float, y: float, width: float, size: float, weight: str,
     )
 
 
-def _icon(x: float, y: float, size: float, color: str) -> str:
-    """SF Symbols are not drawn; a tinted rounded square stands in."""
+def _icon(x: float, y: float, size: float, color: str | None, symbol: str = "", ink: str = "#fff") -> str:
+    """Known SF Symbols are redrawn; any other name gets a tinted rounded square."""
+    found = symbol_path(symbol) if symbol else None
+    if found:
+        path, filled = found
+        tint = color or ink
+        paint = f'fill="{tint}" stroke="{tint}"' if filled else f'fill="none" stroke="{tint}"'
+        return (
+            f'<g transform="translate({x:.1f} {y:.1f}) scale({size / 24:.3f})">'
+            f'<path d="{path}" {paint} stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></g>'
+        )
+    color = color or _BLUE
     return (
         f'<rect x="{x:.1f}" y="{y:.1f}" width="{size:.1f}" height="{size:.1f}" rx="{size * 0.26:.1f}" fill="{color}" opacity="0.9"/>'
         f'<circle cx="{x + size / 2:.1f}" cy="{y + size / 2:.1f}" r="{size * 0.2:.1f}" fill="#fff" opacity="0.9"/>'

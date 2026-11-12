@@ -84,3 +84,66 @@ class RegressionTest(unittest.TestCase):
         a, b = boxes[1], boxes[2]
         self.assertAlmostEqual(a.w, b.w)
         self.assertLessEqual(b.x + b.w, 390 + 18)
+
+
+class PendingFeaturesTest(unittest.TestCase):
+    def test_landscape_swaps_the_screen_and_moves_the_island(self) -> None:
+        from openswift.parse import parse_swiftui
+        from openswift.render import render_svg
+
+        root = parse_swiftui('var body: some View { Text("hi") }')
+        portrait = render_svg(root, "iphone-15")
+        landscape = render_svg(root, "iphone-15", orientation="landscape")
+        self.assertIn('width="126" height="36"', portrait)
+        self.assertIn('width="36" height="126"', landscape)
+        self.assertNotIn(">9:41<", landscape)
+
+    def test_ipad_has_no_island_and_a_wide_screen(self) -> None:
+        from openswift.devices import DEVICES, get_device
+        from openswift.parse import parse_swiftui
+        from openswift.render import render_svg
+
+        self.assertEqual(DEVICES["ipad-pro-11"].idiom, "pad")
+        self.assertEqual(get_device("ipad-pro-11", "landscape").width, 1210)
+        svg = render_svg(parse_swiftui('var body: some View { Text("hi") }'), "ipad-pro-11")
+        self.assertNotIn('id="island"', svg)
+        self.assertNotIn('id="notch"', svg)
+
+    def test_foreach_and_custom_views_expand(self) -> None:
+        from openswift.parse import parse_swiftui
+
+        root = parse_swiftui(
+            'struct Row: View { var body: some View { Text("row") } }\n'
+            'struct Home: View { var body: some View { VStack { ForEach(0..<3) { _ in Row() } } } }'
+        )
+        self.assertEqual(root.kind, "VStack")
+        self.assertEqual(len(root.children), 3)
+        self.assertEqual(root.children[0].children[0].text, "row")
+
+    def test_symbols_are_drawn_and_unknown_ones_get_a_marker(self) -> None:
+        from openswift.parse import parse_swiftui
+        from openswift.render import render_svg, symbol_path
+
+        self.assertIsNotNone(symbol_path("star.fill"))
+        self.assertTrue(symbol_path("star.fill")[1])
+        self.assertIsNone(symbol_path("some.unknown.symbol"))
+        root = parse_swiftui('var body: some View { Label("A", systemImage: "bell") }')
+        self.assertEqual(root.symbol, "bell")
+        self.assertIn("scale(", render_svg(root))
+
+    def test_session_png_follows_look_and_orientation(self) -> None:
+        import os
+
+        from openswift.session import focus, render_session
+
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = os.getcwd()
+            os.chdir(tmp)
+            try:
+                Path("V.swift").write_text('var body: some View { Text("hi") }', encoding="utf-8")
+                focus(Path("V.swift"), [], "check", "approximate-web")
+                dark = render_session(device_id="iphone-15")
+                light = render_session(device_id="iphone-15", appearance="light", frame="natural", orientation="landscape")
+                self.assertNotEqual(dark.read_bytes(), light.read_bytes())
+            finally:
+                os.chdir(cwd)

@@ -26,6 +26,7 @@ class ViewNode:
     frame_width: float | None = None
     text_align: str = "leading"
     button_style: str = ""
+    symbol: str = ""
     pad_top: float = 0
     pad_right: float = 0
     pad_bottom: float = 0
@@ -129,6 +130,7 @@ class _Parser:
 
     def parse_file(self) -> ViewNode:
         bodies = []
+        self.structs: dict[str, ViewNode] = {}
         for idx, tok in enumerate(self.tokens):
             if tok == ("id", "body") and idx + 1 < len(self.tokens) and self.tokens[idx + 1][0] == ":":
                 brace = self._brace_after(idx)
@@ -142,13 +144,23 @@ class _Parser:
                     kind="VStack", children=children, alignment="leading", spacing=8
                 )
                 bodies.append(node)
+                owner = self._struct_before(idx)
+                if owner:
+                    self.structs[owner] = node
         if bodies:
+            bodies = [_expand(body, self.structs, ()) for body in bodies]
             return max(bodies, key=_weight)
         self.i = 0
         found = self._first_view()
         if found is not None and found.kind in _SWIFTUI:
             return found
         return _fallback(self.tokens)
+
+    def _struct_before(self, idx: int) -> str:
+        for j in range(idx, -1, -1):
+            if self.tokens[j] == ("id", "struct") and j + 1 < len(self.tokens):
+                return self.tokens[j + 1][1]
+        return ""
 
     def _brace_after(self, idx: int) -> int | None:
         j = idx
@@ -194,7 +206,11 @@ class _Parser:
         while self.peek() and not self.accept("}"):
             tok = self.peek()
             if self._at_view():
-                found.append(self._view())
+                view = self._view()
+                if view.kind == "ForEach":
+                    found.extend(view.children * int(view.text or 1))
+                else:
+                    found.append(view)
             else:
                 self.i += 1
         return found
@@ -226,6 +242,12 @@ class _Parser:
             quoted = _first_string(args)
             if quoted:
                 node.text = quoted
+        if node.kind in {"Image", "Label"}:
+            symbol = _symbol_name(args)
+            if symbol:
+                node.symbol = symbol
+        if node.kind == "ForEach":
+            node.text = str(_repeat_count(args))
         if "spacing" in args:
             number = _named_number(args, "spacing")
             if number is not None:
@@ -314,6 +336,34 @@ class _Parser:
                 node.frame_max_width = True
         else:
             node.notes.append(name)
+
+
+def _symbol_name(args: str) -> str:
+    import re
+
+    match = re.search(r'system(?:Name|Image):\s*"([^"]+)"', args)
+    return match.group(1) if match else ""
+
+
+def _repeat_count(args: str) -> int:
+    """How many times a ForEach body is drawn: ranges and literal arrays, else a small sample."""
+    import re
+
+    ranges = re.search(r"(\d+)(\.{2,3})\s*(\d+)", args)
+    if ranges:
+        low, high = int(ranges.group(1)), int(ranges.group(3))
+        return max(0, min(8, high - low + (1 if len(ranges.group(2)) == 3 else 0)))
+    if args.startswith("["):
+        depth = items = 0
+        for ch in args:
+            if ch in "([":
+                depth += 1
+            elif ch in ")]":
+                depth -= 1
+            elif ch == "," and depth == 1:
+                items += 1
+        return min(8, items + 1)
+    return 3
 
 
 def _first_string(args: str) -> str:
@@ -419,6 +469,20 @@ def _padding(node: ViewNode, args: str) -> None:
         node.pad_left += amount
     if edge in {"all", "trailing", "horizontal"}:
         node.pad_right += amount
+
+
+def _expand(node: ViewNode, structs: dict[str, ViewNode], stack: tuple[str, ...]) -> ViewNode:
+    """Draw a view the file defines itself (`ProfileCard()`) from its own body."""
+    import copy
+
+    if node.kind in structs and not node.children and node.kind not in stack and len(stack) < 6:
+        inner = _expand(copy.deepcopy(structs[node.kind]), structs, stack + (node.kind,))
+        wrapper = copy.copy(node)
+        wrapper.kind = "Group"
+        wrapper.children = [inner]
+        return wrapper
+    node.children = [_expand(child, structs, stack) for child in node.children]
+    return node
 
 
 def _weight(node: ViewNode) -> tuple[int, int]:

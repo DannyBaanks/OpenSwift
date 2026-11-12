@@ -186,13 +186,15 @@ fn render_source(
     device: Option<String>,
     appearance: Option<String>,
     frame: Option<String>,
+    orientation: Option<String>,
 ) -> Result<serde_json::Value, String> {
     let device = device.unwrap_or_else(|| "iphone-14".to_string());
     let appearance = appearance.unwrap_or_else(|| "dark".to_string());
     let frame = frame.unwrap_or_else(|| "black".to_string());
+    let orientation = orientation.unwrap_or_else(|| "portrait".to_string());
     python_json(
         &[
-            "-m", "openswift", "sketch", "-", "--device", &device, "--appearance", &appearance, "--frame", &frame,
+            "-m", "openswift", "sketch", "-", "--device", &device, "--appearance", &appearance, "--frame", &frame, "--orientation", &orientation,
         ],
         &source,
     )

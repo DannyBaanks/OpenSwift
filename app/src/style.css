@@ -149,3 +149,5 @@ footer { display: flex; align-items: center; justify-content: space-between; gap
 .xprompt-label { flex: 0 1 auto; color: var(--green-dark); font-size: 11px; font-weight: 600; white-space: pre-wrap; }
 .xprompt-input { flex: 1; min-width: 100px; height: 28px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 6px; background: #fff; font-size: 12px; }
 .xpanel [hidden], .xpanel[hidden] { display: none !important; }
+.xwho { display: flex; align-items: center; gap: 8px; }
+.xpanel .xinput[type="password"], .xpanel .xinput[type="email"] { min-width: 210px; }

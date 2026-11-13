@@ -239,6 +239,53 @@ export function mountXtool({ invoke, pickFile, notify }) {
     signBtn.title = s.auth.logged_in ? "" : "Sign in first (Account tab)";
   });
 
+  // ---------------- Account ----------------
+  const account = makePanel("account");
+  const accountTerm = makeTerminal(invoke, {
+    onDone: () => refreshStatus(),
+  });
+  const appleId = el("input", { class: "xinput", type: "email", placeholder: "Apple ID", autocomplete: "username", spellcheck: "false" });
+  const password = el("input", { class: "xinput", type: "password", placeholder: "Password", autocomplete: "current-password" });
+  const who = el("div", { class: "xwho" });
+  const loginForm = el("form", { class: "xrow" }, appleId, password, el("button", { type: "submit", class: "primary", text: "Sign in" }));
+  const signOut = button("Sign out", () => {
+    if (accountTerm.busy()) return notify("Another xtool job is running");
+    accountTerm.run("auth-logout", {}, { title: "auth logout" });
+  });
+  const forget = button("Sign out and forget this computer (2FA)", () => {
+    if (accountTerm.busy()) return notify("Another xtool job is running");
+    accountTerm.run("auth-logout", { reset_2fa: true }, { title: "auth logout --reset-2fa" });
+  });
+  const warning = el("div", { class: "xmissing", text: "Heads up (from xtool): password sign-in emulates a Mac and talks to Apple through private APIs. Your credentials go only to Apple, but consider a secondary Apple ID. Free accounts allow a few App IDs per week and certificates last 7 days. Paid-program API keys are not offered here; use `xtool auth login --mode key` in a terminal." });
+  const missingAcct = el("div", { class: "xmissing", hidden: "", text: "xtool is not installed, so there is nothing to sign in to yet. See the Build tab." });
+  loginForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (accountTerm.busy()) return notify("Another xtool job is running");
+    const user = appleId.value.trim();
+    const pass = password.value;
+    if (!user || !pass) return notify("Enter your Apple ID and password");
+    password.value = ""; // the password lives only in the terminal's one-shot answer
+    accountTerm.run("auth-login", { username: user }, { title: "auth login --mode password --username " + user, secret: pass });
+  });
+  account.append(
+    el("div", { class: "xrow xtop" }, who, el("div", { class: "xrow" }, signOut, forget)),
+    missingAcct, warning, loginForm,
+    el("span", { class: "xnote", text: "If Apple asks for a verification code or a team, a prompt appears below." }),
+    accountTerm.root,
+  );
+  listeners.push((s) => {
+    const installed = Boolean(s && s.installed);
+    missingAcct.hidden = installed;
+    loginForm.hidden = !installed;
+    signOut.hidden = forget.hidden = !installed || !s.auth.logged_in;
+    who.replaceChildren(
+      installed && s.auth.logged_in
+        ? chip("Signed in", "ok", s.auth.detail)
+        : chip(installed ? "Signed out" : "xtool missing", installed ? "warn" : "bad"),
+      installed && s.auth.logged_in && s.auth.detail ? el("span", { class: "xnote", text: s.auth.detail }) : "",
+    );
+  });
+
   return {
     terminal,
     panels,

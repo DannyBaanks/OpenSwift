@@ -32,6 +32,7 @@ app.innerHTML = `
         <button data-pane="console">Console</button>
         <span class="tab-rule"></span>
         <button data-pane="build">Build</button>
+        <button data-pane="account">Account</button>
       </div><span class="dock-caption">PREVIEW INSPECTOR</span></div>
       <pre id="dockpre">Open a file and run a preview to inspect its sketch tree.</pre>
     </div>

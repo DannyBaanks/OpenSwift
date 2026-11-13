@@ -6,7 +6,10 @@ use std::sync::Mutex;
 
 use tauri::State;
 
+mod xtool;
+
 struct Project(Mutex<PathBuf>);
+struct XtoolJobs(xtool::Jobs);
 
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -200,19 +203,77 @@ fn render_source(
     )
 }
 
+fn project_root(state: &State<Project>) -> Result<PathBuf, String> {
+    Ok(state.0.lock().map_err(|e| e.to_string())?.clone())
+}
+
+#[tauri::command]
+async fn xtool_status(state: State<'_, Project>) -> Result<xtool::XtoolStatus, String> {
+    let root = project_root(&state)?;
+    tauri::async_runtime::spawn_blocking(move || xtool::status(xtool::find_xtool().as_ref(), &root))
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn xtool_devices(state: State<'_, Project>) -> Result<Vec<xtool::DeviceInfo>, String> {
+    let root = project_root(&state)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let launcher = xtool::find_xtool().ok_or("xtool is not installed")?;
+        xtool::list_devices(&launcher, &root)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+fn xtool_start(
+    state: State<Project>,
+    jobs: State<XtoolJobs>,
+    action: String,
+    params: Option<xtool::Params>,
+) -> Result<u32, String> {
+    let root = project_root(&state)?;
+    let launcher = xtool::find_xtool().ok_or("xtool is not installed")?;
+    let args = xtool::build_args(&action, &params.unwrap_or_default(), &root)?;
+    jobs.0.start(&launcher, args, &root, &action)
+}
+
+#[tauri::command]
+fn xtool_poll(jobs: State<XtoolJobs>, id: u32, since: usize) -> Result<xtool::Poll, String> {
+    jobs.0.poll(id, since)
+}
+
+#[tauri::command]
+fn xtool_input(jobs: State<XtoolJobs>, id: u32, text: String) -> Result<(), String> {
+    jobs.0.input(id, &text)
+}
+
+#[tauri::command]
+fn xtool_cancel(jobs: State<XtoolJobs>, id: u32) -> Result<(), String> {
+    jobs.0.cancel(id)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let start = repo_root().canonicalize().unwrap_or(repo_root());
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(Project(Mutex::new(start)))
+        .manage(XtoolJobs(xtool::Jobs::default()))
         .invoke_handler(tauri::generate_handler![
             project_info,
             set_project,
             read_source,
             write_source,
             render_source,
-            highlight_source
+            highlight_source,
+            xtool_status,
+            xtool_devices,
+            xtool_start,
+            xtool_poll,
+            xtool_input,
+            xtool_cancel
         ])
         .run(tauri::generate_context!())
         .expect("error while running OpenSwift");

@@ -1,6 +1,7 @@
 import "./style.css";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { mountXtool } from "./xtool-panel.js";
 
 const app = document.querySelector("#app");
 app.innerHTML = `
@@ -29,6 +30,8 @@ app.innerHTML = `
         <button data-pane="output">Output</button>
         <button data-pane="problems">Problems</button>
         <button data-pane="console">Console</button>
+        <span class="tab-rule"></span>
+        <button data-pane="build">Build</button>
       </div><span class="dock-caption">PREVIEW INSPECTOR</span></div>
       <pre id="dockpre">Open a file and run a preview to inspect its sketch tree.</pre>
     </div>
@@ -46,6 +49,14 @@ app.innerHTML = `
 <footer><div class="footer-project"><span class="tiny-dot"></span><span id="rootlabel">No project open</span></div><div class="footer-meta"><span>OpenSwift Studio</span><span>·</span><span>Local workspace</span></div></footer>
 `;
 
+const xtool = mountXtool({
+  invoke,
+  pickFile: async (extensions) => {
+    const picked = await open({ multiple: false, directory: false, filters: [{ name: "iOS app", extensions }] });
+    return typeof picked === "string" ? picked : null;
+  },
+  notify: (message) => log("console", message),
+});
 const code = document.querySelector("#code");
 const list = document.querySelector("#list");
 const filename = document.querySelector("#filename");
@@ -133,7 +144,11 @@ function scheduleHighlight() {
     }
   }, 80);
 }
-function show() { dockpre.textContent = panes[pane]; }
+function show() {
+  if (xtool.has(pane)) { xtool.show(pane); return; }
+  xtool.hideAll();
+  dockpre.textContent = panes[pane];
+}
 function log(which, line) {
   panes[which] = (panes[which] ? panes[which] + "\n" : "") + line;
   if (pane === which) show();

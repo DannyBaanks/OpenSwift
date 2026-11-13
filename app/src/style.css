@@ -123,3 +123,29 @@ footer { display: flex; align-items: center; justify-content: space-between; gap
   #stage { padding-right: 13px; padding-left: 13px; }
   .brand small { display: none; }
 }
+
+/* xtool: build, account and devices panels in the dock */
+#center.tall { grid-template-rows: 39px minmax(120px, 1fr) minmax(310px, 54vh); }
+#dock { position: relative; }
+.tab-rule { width: 1px; height: 16px; margin: 0 6px; background: var(--line-strong); }
+.xpanel { grid-row: 2; display: flex; flex-direction: column; gap: 9px; min-height: 0; padding: 11px 14px; overflow: auto; }
+.xpanel[hidden] { display: none; }
+.xrow { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.xtop { justify-content: space-between; }
+.xsep { width: 1px; height: 22px; background: var(--line); margin: 0 3px; }
+.xchips { display: flex; flex-wrap: wrap; gap: 6px; }
+.xchip { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: #5d635a; font-size: 10px; }
+.xchip i { width: 6px; height: 6px; border-radius: 50%; background: var(--subtle); }
+.xchip.ok i { background: #4f9d69; } .xchip.warn i { background: var(--orange); } .xchip.bad i { background: #c9503f; }
+.xmissing { padding: 9px 11px; border: 1px solid #efd9cc; border-radius: 8px; background: #fdf4ee; color: #7a5a48; font-size: 11px; }
+.xnote { color: var(--muted); font-size: 11px; }
+.xselect, .xinput { height: 30px; min-width: 150px; padding: 0 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font-size: 12px; }
+.xterm { display: flex; flex: 1; flex-direction: column; gap: 6px; min-height: 120px; }
+.xterm-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 22px; }
+.xstatus { color: var(--muted); font-size: 11px; } .xstatus.ok { color: #3f7b54; } .xstatus.bad { color: #c9503f; }
+.xlog { flex: 1; min-height: 80px; margin: 0; padding: 9px 11px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: #4c5249; font: 11px/1.55 ui-monospace, monospace; white-space: pre-wrap; }
+.xprompt { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border: 1px solid #cfe0d3; border-radius: 8px; background: var(--green-wash); }
+.xprompt[hidden] { display: none; }
+.xprompt-label { flex: 0 1 auto; color: var(--green-dark); font-size: 11px; font-weight: 600; white-space: pre-wrap; }
+.xprompt-input { flex: 1; min-width: 100px; height: 28px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 6px; background: #fff; font-size: 12px; }
+.xpanel [hidden], .xpanel[hidden] { display: none !important; }

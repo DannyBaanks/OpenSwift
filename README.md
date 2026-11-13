@@ -85,6 +85,12 @@ En Linux se generan los paquetes disponibles, incluido `.deb`, `.rpm` y AppImage
 
 Descarga los instaladores de escritorio desde [Releases](https://github.com/DannyBaanks/OpenSwift/releases). El release `v0.5` incluye un instalador NSIS `.exe` para Windows, un `.AppImage` para Linux y sus checksums SHA-256.
 
+### Compilar, firmar e instalar (xtool)
+
+La app de escritorio puede compilar y firmar sin salir de la ventana usando [xtool](https://github.com/xtool-org/xtool) (MIT). OpenSwift no lo incluye: lo busca en `PATH`, en `~/.local/bin` o dentro de WSL en Windows, y lo ejecuta en una terminal integrada para que funcionen sus preguntas (Apple ID, contraseña, código 2FA).
+
+Pestaña **Build**: estado de xtool, del SDK de iOS, de la cuenta y del proyecto; **Set up xtool** (`xtool setup`), **Create project** (`xtool new`), **Build**, **Build + sign .ipa**, **Run on device** e **Install .ipa…**. Sólo se pueden lanzar esas acciones, con argumentos validados; no hay un campo libre de comandos. Requiere un SDK de iOS construido a partir de un Xcode `.xip` que descargas tú desde Apple.
+
 ### Studio web local
 
 Desde la raíz de OpenSwift, apunta `PYTHONPATH` al clon y pasa la carpeta del proyecto que quieras abrir:

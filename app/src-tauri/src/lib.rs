@@ -6,6 +6,7 @@ use std::sync::Mutex;
 
 use tauri::State;
 
+mod sideload;
 mod xtool;
 
 struct Project(Mutex<PathBuf>);
@@ -272,6 +273,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(Project(Mutex::new(start)))
         .manage(XtoolJobs(xtool::Jobs::default()))
+        .manage(sideload::SideState::default())
         .invoke_handler(tauri::generate_handler![
             project_info,
             set_project,
@@ -285,7 +287,22 @@ pub fn run() {
             xtool_start,
             xtool_poll,
             xtool_input,
-            xtool_cancel
+            xtool_cancel,
+            sideload::side_storage_kind,
+            sideload::side_login,
+            sideload::side_account,
+            sideload::side_logout,
+            sideload::side_certificates,
+            sideload::side_revoke_certificate,
+            sideload::side_app_ids,
+            sideload::side_delete_app_id,
+            sideload::side_devices,
+            sideload::side_select_device,
+            sideload::side_install_ipa,
+            sideload::side_pairing_apps,
+            sideload::side_place_pairing,
+            sideload::side_export_pairing,
+            sideload::side_install_sidestore
         ])
         .run(tauri::generate_context!())
         .expect("error while running OpenSwift");

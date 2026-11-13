@@ -1,3 +1,5 @@
+import { mountSideload } from "./sideload-panel.js";
+
 // Build, sign and install panels for the dock. They talk to the Rust side
 // (`xtool_*` commands), which runs the real xtool CLI in a pseudo terminal.
 
@@ -128,6 +130,7 @@ const chip = (label, state, detail = "") =>
   el("span", { class: "xchip " + state, title: detail }, el("i"), label);
 
 export function mountXtool({ invoke, pickFile, notify }) {
+  let sideload = null;
   const dock = document.querySelector("#dock");
   const center = document.querySelector("#center");
   const panels = {};
@@ -363,6 +366,8 @@ export function mountXtool({ invoke, pickFile, notify }) {
     if (!ok) tableBox.replaceChildren(el("span", { class: "xnote", text: s && s.installed ? "Sign in from the Account tab to see your certificates, App IDs and devices." : "xtool is not installed. See the Build tab." }));
   });
 
+  sideload = mountSideload({ invoke, makePanel, pickFile, notify });
+
   return {
     terminal,
     panels,
@@ -381,6 +386,7 @@ export function mountXtool({ invoke, pickFile, notify }) {
       if (pre) pre.hidden = true;
       refreshStatus();
       if (name === "build" && !deviceSelect.options.length) refreshDevices.click();
+      if (name === "sideload") sideload.onShow();
       if (name === "devices") {
         if (!devSelect.options.length) loadDevices();
         refreshStatus().then((s) => { if (s && s.installed && s.auth.logged_in) loadInventory(kind); });

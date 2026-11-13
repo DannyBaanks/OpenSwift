@@ -17,6 +17,50 @@
 
 **Without it.** OpenSwift works without msf: the editor is shown without colors, and parsing and drawing are OpenSwift's own code (`openswift/parse.py`, `openswift/render.py`).
 
+## iLoader — sideloading engine
+
+| | |
+|---|---|
+| Project | iLoader |
+| Author | nab138 |
+| Source | https://github.com/nab138/iloader |
+| License | MIT, Copyright (c) 2025 nab138 (its name and logo are licensed separately; OpenSwift uses neither) |
+| What OpenSwift uses | the approach and parts of its Rust backend (Apple sign-in, certificate and App ID management, installing an `.ipa`, pairing files, SideStore install), adapted in `app/src-tauri/src/sideload.rs` |
+
+It builds on the crates [`isideload`](https://crates.io/crates/isideload) and [`idevice`](https://crates.io/crates/idevice) (both MIT), which are regular Cargo dependencies, not copied code.
+
+**Licenses that come with those crates.** `isideload` depends on `apple-codesign-quick`, which is **LGPL-2.1-or-later**. It is linked into the desktop app. Anyone who distributes a build of the desktop app must keep that notice, make the corresponding source of that crate available (it is public on crates.io and pinned in `app/src-tauri/Cargo.lock`) and not stop users from relinking the app with a modified version. The repository itself stays MIT.
+
+The iLoader license text, as required by the MIT license:
+
+```text
+MIT License
+
+Copyright (c) 2025 nab138
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+## xtool — not included
+
+[xtool](https://github.com/xtool-org/xtool) (MIT, Copyright (c) 2024 Kabir Oberai) is **not** part of OpenSwift. The desktop app only runs the `xtool` program if the user installed it, as a separate process.
+
 ## Related, not included
 
 [MiniSwift](https://miniswift.run/) compiles Swift in the browser. It inspired the idea of a Swift preview with no Xcode. OpenSwift includes no code from miniswift.run, and `miniswift` is only a provider name that is not wired yet. This notice does not claim that msf and miniswift.run are the same project.

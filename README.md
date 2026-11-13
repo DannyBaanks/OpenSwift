@@ -93,9 +93,12 @@ Tres pestañas junto a Console:
 
 - **Build**: estado de xtool, del SDK de iOS, de la cuenta y del proyecto; **Set up xtool** (`xtool setup`), **Create project** (`xtool new`), **Build**, **Build + sign .ipa**, **Run on device** e **Install .ipa…**. Necesita un SDK de iOS construido a partir de un Xcode `.xip` que descargas tú desde Apple.
 - **Account**: inicio de sesión con Apple ID (`xtool auth login`). La contraseña se envía una sola vez al prompt de xtool; no va en los argumentos, no se muestra en el log ni se guarda, y el campo se limpia al enviar. xtool avisa que este modo usa APIs privadas de Apple: considera un Apple ID secundario.
-- **Devices**: lo que Apple tiene registrado para tu cuenta (equipos, certificados, App IDs, dispositivos y perfiles, vía `xtool ds … list`) y, sobre el dispositivo conectado, **Launch** y **Uninstall** por bundle ID.
+- **Devices**: lo que Apple tiene registrado para tu cuenta (equipos, certificados, App IDs, dispositivos y perfiles, vía `xtool ds … list`, con la misma sesión de la pestaña Account) y, sobre el dispositivo conectado, **Launch** y **Uninstall** por bundle ID.
+- **Sideload**: el motor de [iLoader](https://github.com/nab138/iloader) (`isideload` + `idevice`, MIT) dentro de la ventana, con su **propio** inicio de sesión de Apple aparte del de xtool: instalar un `.ipa` cualquiera, instalar SideStore o LiveContainer + SideStore, colocar el archivo de pairing en las apps que lo piden (o exportarlo), y listar y **revocar** certificados o **borrar** App IDs. Revocar y borrar piden confirmación. El inicio de sesión pasa por un servidor Anisette de terceros (elegible); tus credenciales sólo van a Apple. La clave de firma se guarda en el llavero del sistema o, si no hay, en un archivo de la carpeta de la app. Necesita `usbmuxd` (Linux) o Apple Devices/iTunes (Windows).
 
-Qué no hace: iLoader tiene funciones que xtool no ofrece (revocar certificados o App IDs, archivos de pairing, instalar SideStore). Hacerlas aquí exigiría una segunda sesión con Apple (otro login, otro servidor Anisette) junto a la de xtool, así que quedan fuera por ahora; para eso usa [iLoader](https://github.com/nab138/iloader) (MIT) por separado.
+Dos sesiones de Apple: xtool (Build, Account, Devices) e iLoader (Sideload) no comparten cuenta ni claves. Si usas la misma Apple ID en ambas, los certificados de desarrollo de una pueden ocupar el cupo de la otra; revocarlos desde Sideload es justo para eso.
+
+**Licencias.** `isideload` trae `apple-codesign-quick` (LGPL-2.1-or-later) enlazado en la app de escritorio; lee [NOTICE.md](NOTICE.md) antes de distribuir builds.
 
 ### Studio web local
 

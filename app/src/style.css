@@ -157,3 +157,7 @@ footer { display: flex; align-items: center; justify-content: space-between; gap
 .xtable th { position: sticky; top: 0; text-align: left; padding: 5px 8px; background: var(--surface-soft); border-bottom: 1px solid var(--line-strong); color: var(--muted); font-weight: 600; }
 .xtable td { padding: 5px 8px; border-bottom: 1px solid var(--line); color: #4c5249; word-break: break-all; }
 button.danger { color: #b8402f; }
+.xsay.ok { color: #3f7b54; } .xsay.bad { color: #c9503f; white-space: pre-wrap; }
+.xcol { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.xcheck { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+.xprompt-form { display: flex; align-items: center; gap: 8px; width: 100%; }

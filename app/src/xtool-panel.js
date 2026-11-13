@@ -286,6 +286,83 @@ export function mountXtool({ invoke, pickFile, notify }) {
     );
   });
 
+  // ---------------- Devices & Apple inventory ----------------
+  const devices = makePanel("devices");
+  const INVENTORY = {
+    teams: ["Teams", ["name", "status", "id", "memberships"]],
+    certificates: ["Certificates", ["name", "type", "expiry", "serial number"]],
+    identifiers: ["App IDs", ["name", "identifier", "platform"]],
+    devices: ["Registered devices", ["name", "platform", "udid"]],
+    profiles: ["Profiles", ["name", "profile type", "profile state", "expiration date"]],
+  };
+  let kind = "certificates";
+  const kindBar = el("div", { class: "xrow xkinds" });
+  const tableBox = el("div", { class: "xtable-box" }, el("span", { class: "xnote", text: "Pick what to list. This reads your Apple Developer account through xtool (no second sign-in)." }));
+  const devTerm = makeTerminal(invoke, {});
+  const bundle = el("input", { class: "xinput", placeholder: "Bundle ID, e.g. com.example.HelloApp", spellcheck: "false" });
+  const devSelect = el("select", { class: "xselect", title: "Connected device" });
+  const devNote = el("span", { class: "xnote" });
+
+  async function loadDevices() {
+    devNote.textContent = "Looking for devices…";
+    try {
+      const found = await invoke("xtool_devices");
+      devSelect.replaceChildren(...found.map((d) => el("option", { value: d.udid, text: `${d.name} · ${d.connection}` })));
+      devNote.textContent = found.length ? "" : "No device found. Plug it in and unlock it.";
+    } catch (err) {
+      devNote.textContent = String(err);
+    }
+  }
+  function renderInventory(inv) {
+    const [title, columns] = INVENTORY[inv.kind];
+    if (!inv.records.length) {
+      tableBox.replaceChildren(
+        el("span", { class: "xnote", text: "Nothing to show for " + title.toLowerCase() + "." }),
+        inv.raw ? el("pre", { class: "xlog", text: inv.raw }) : "",
+      );
+      return;
+    }
+    const rows = inv.records.map((r) => Object.fromEntries(r.fields));
+    const cols = columns.filter((c) => rows.some((r) => r[c] != null));
+    const table = el("table", { class: "xtable" },
+      el("thead", {}, el("tr", {}, cols.map((c) => el("th", { text: c })))),
+      el("tbody", {}, rows.map((r) => el("tr", {}, cols.map((c) => el("td", { text: r[c] ?? "" }))))),
+    );
+    tableBox.replaceChildren(el("span", { class: "xnote", text: `${rows.length} ${title.toLowerCase()}` }), table);
+  }
+  async function loadInventory(which) {
+    kind = which;
+    kindBar.querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.kind === which));
+    tableBox.replaceChildren(el("span", { class: "xnote", text: "Asking Apple…" }));
+    try {
+      renderInventory(await invoke("xtool_inventory", { kind: which }));
+    } catch (err) {
+      tableBox.replaceChildren(el("span", { class: "xnote", text: String(err) }));
+    }
+  }
+  Object.entries(INVENTORY).forEach(([key, [title]]) => {
+    const b = el("button", { class: "button-quiet", text: title, "data-kind": key, onclick: () => loadInventory(key) });
+    kindBar.append(b);
+  });
+  const act = (action, label, danger) => button(label, () => {
+    if (devTerm.busy()) return notify("Another xtool job is running");
+    if (!devSelect.value) return notify("Connect a device and refresh the list");
+    if (!bundle.value.trim()) return notify("Enter the bundle ID of the app");
+    if (danger && !window.confirm(`${label} ${bundle.value.trim()} on the selected device?`)) return;
+    devTerm.run(action, { udid: devSelect.value, bundle_id: bundle.value.trim() }, { title: `${action} ${bundle.value.trim()}` });
+  }, danger ? "button-quiet danger" : "button-quiet");
+  devices.append(
+    el("div", { class: "xrow xtop" }, kindBar, button("↻ Reload", () => loadInventory(kind))),
+    tableBox,
+    el("div", { class: "xrow" }, el("strong", { class: "xnote", text: "On the device" }), devSelect, button("↻", loadDevices), bundle, act("launch", "Launch"), act("uninstall", "Uninstall", true), devNote),
+    devTerm.root,
+  );
+  listeners.push((s) => {
+    const ok = Boolean(s && s.installed && s.auth.logged_in);
+    kindBar.querySelectorAll("button").forEach((b) => { b.disabled = !ok; });
+    if (!ok) tableBox.replaceChildren(el("span", { class: "xnote", text: s && s.installed ? "Sign in from the Account tab to see your certificates, App IDs and devices." : "xtool is not installed. See the Build tab." }));
+  });
+
   return {
     terminal,
     panels,
@@ -304,6 +381,10 @@ export function mountXtool({ invoke, pickFile, notify }) {
       if (pre) pre.hidden = true;
       refreshStatus();
       if (name === "build" && !deviceSelect.options.length) refreshDevices.click();
+      if (name === "devices") {
+        if (!devSelect.options.length) loadDevices();
+        refreshStatus().then((s) => { if (s && s.installed && s.auth.logged_in) loadInventory(kind); });
+      }
     },
     hideAll() {
       Object.values(panels).forEach((node) => { node.hidden = true; });

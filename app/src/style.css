@@ -151,3 +151,9 @@ footer { display: flex; align-items: center; justify-content: space-between; gap
 .xpanel [hidden], .xpanel[hidden] { display: none !important; }
 .xwho { display: flex; align-items: center; gap: 8px; }
 .xpanel .xinput[type="password"], .xpanel .xinput[type="email"] { min-width: 210px; }
+.xkinds button.on { border-color: var(--green); color: var(--green-dark); background: var(--green-wash); }
+.xtable-box { display: flex; flex-direction: column; gap: 6px; min-height: 90px; max-height: 38%; overflow: auto; }
+.xtable { width: 100%; border-collapse: collapse; font-size: 11px; }
+.xtable th { position: sticky; top: 0; text-align: left; padding: 5px 8px; background: var(--surface-soft); border-bottom: 1px solid var(--line-strong); color: var(--muted); font-weight: 600; }
+.xtable td { padding: 5px 8px; border-bottom: 1px solid var(--line); color: #4c5249; word-break: break-all; }
+button.danger { color: #b8402f; }

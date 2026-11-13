@@ -87,9 +87,15 @@ Descarga los instaladores de escritorio desde [Releases](https://github.com/Dann
 
 ### Compilar, firmar e instalar (xtool)
 
-La app de escritorio puede compilar y firmar sin salir de la ventana usando [xtool](https://github.com/xtool-org/xtool) (MIT). OpenSwift no lo incluye: lo busca en `PATH`, en `~/.local/bin` o dentro de WSL en Windows, y lo ejecuta en una terminal integrada para que funcionen sus preguntas (Apple ID, contraseña, código 2FA).
+La app de escritorio compila, firma e instala sin salir de la ventana usando [xtool](https://github.com/xtool-org/xtool) (MIT). OpenSwift no lo incluye: lo busca en `OPENSWIFT_XTOOL`, `PATH`, `~/.local/bin` o dentro de WSL en Windows, y lo ejecuta en una terminal integrada para que funcionen sus preguntas (Apple ID, contraseña, código 2FA, equipo). Sólo se pueden lanzar acciones de una lista fija, con argumentos validados; no hay un campo libre de comandos, y sólo corre un trabajo a la vez.
 
-Pestaña **Build**: estado de xtool, del SDK de iOS, de la cuenta y del proyecto; **Set up xtool** (`xtool setup`), **Create project** (`xtool new`), **Build**, **Build + sign .ipa**, **Run on device** e **Install .ipa…**. Sólo se pueden lanzar esas acciones, con argumentos validados; no hay un campo libre de comandos. Requiere un SDK de iOS construido a partir de un Xcode `.xip` que descargas tú desde Apple.
+Tres pestañas junto a Console:
+
+- **Build**: estado de xtool, del SDK de iOS, de la cuenta y del proyecto; **Set up xtool** (`xtool setup`), **Create project** (`xtool new`), **Build**, **Build + sign .ipa**, **Run on device** e **Install .ipa…**. Necesita un SDK de iOS construido a partir de un Xcode `.xip` que descargas tú desde Apple.
+- **Account**: inicio de sesión con Apple ID (`xtool auth login`). La contraseña se envía una sola vez al prompt de xtool; no va en los argumentos, no se muestra en el log ni se guarda, y el campo se limpia al enviar. xtool avisa que este modo usa APIs privadas de Apple: considera un Apple ID secundario.
+- **Devices**: lo que Apple tiene registrado para tu cuenta (equipos, certificados, App IDs, dispositivos y perfiles, vía `xtool ds … list`) y, sobre el dispositivo conectado, **Launch** y **Uninstall** por bundle ID.
+
+Qué no hace: iLoader tiene funciones que xtool no ofrece (revocar certificados o App IDs, archivos de pairing, instalar SideStore). Hacerlas aquí exigiría una segunda sesión con Apple (otro login, otro servidor Anisette) junto a la de xtool, así que quedan fuera por ahora; para eso usa [iLoader](https://github.com/nab138/iloader) (MIT) por separado.
 
 ### Studio web local
 

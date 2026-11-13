@@ -227,6 +227,17 @@ async fn xtool_devices(state: State<'_, Project>) -> Result<Vec<xtool::DeviceInf
 }
 
 #[tauri::command]
+async fn xtool_inventory(state: State<'_, Project>, kind: String) -> Result<xtool::Inventory, String> {
+    let root = project_root(&state)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let launcher = xtool::find_xtool().ok_or("xtool is not installed")?;
+        xtool::inventory(&launcher, &root, &kind)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
 fn xtool_start(
     state: State<Project>,
     jobs: State<XtoolJobs>,
@@ -270,6 +281,7 @@ pub fn run() {
             highlight_source,
             xtool_status,
             xtool_devices,
+            xtool_inventory,
             xtool_start,
             xtool_poll,
             xtool_input,

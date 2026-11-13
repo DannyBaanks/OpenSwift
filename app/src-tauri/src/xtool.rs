@@ -81,6 +81,14 @@ fn clean_udid(value: &str) -> Result<String, String> {
     if ok { Ok(value.to_string()) } else { Err("not a device UDID".into()) }
 }
 
+fn clean_bundle_id(value: &str) -> Result<String, String> {
+    let ok = !value.is_empty()
+        && value.len() <= 155
+        && !value.starts_with(['-', '.'])
+        && value.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-');
+    if ok { Ok(value.to_string()) } else { Err("not a bundle identifier (letters, digits, . and -)".into()) }
+}
+
 fn clean_package_name(value: &str) -> Result<String, String> {
     let mut chars = value.chars();
     let first_ok = chars.next().map_or(false, |c| c.is_ascii_alphabetic() || c == '_');
@@ -97,6 +105,7 @@ pub struct Params {
     pub username: Option<String>,
     pub name: Option<String>,
     pub path: Option<String>,
+    pub bundle_id: Option<String>,
     #[serde(default)]
     pub sign: bool,
     #[serde(default)]
@@ -122,6 +131,16 @@ pub fn build_args(action: &str, params: &Params, root: &Path) -> Result<Vec<Stri
         "sdk-status" => s(&["sdk", "status"]),
         "devices" => s(&["devices", "--no-wait"]),
         "setup" => s(&["setup"]),
+        "ds-teams" => s(&["ds", "teams", "list"]),
+        "ds-certificates" => s(&["ds", "certificates", "list"]),
+        "ds-identifiers" => s(&["ds", "identifiers", "list"]),
+        "ds-devices" => s(&["ds", "devices", "list"]),
+        "ds-profiles" => s(&["ds", "profiles", "list"]),
+        "launch" | "uninstall" => {
+            let bundle = clean_bundle_id(params.bundle_id.as_deref().unwrap_or(""))?;
+            let udid = clean_udid(params.udid.as_deref().ok_or("choose a device first")?)?;
+            vec![action.to_string(), bundle, "--udid".into(), udid]
+        }
         "auth-login" => {
             let mut a = s(&["auth", "login", "--mode", "password"]);
             if let Some(user) = params.username.as_deref().filter(|u| !u.trim().is_empty()) {
@@ -268,6 +287,74 @@ pub fn parse_devices(text: &str) -> Vec<DeviceInfo> {
             Some(DeviceInfo { name: name.trim().into(), connection: connection.trim().into(), udid: udid.into() })
         })
         .collect()
+}
+
+/// One entry of an `xtool ds ... list` answer: the fields printed at its top level.
+#[derive(Serialize, Debug, PartialEq, Clone, Default)]
+pub struct Record {
+    pub fields: Vec<(String, String)>,
+}
+
+/// Reads the `- id: 123` / `  name: x` blocks that `xtool ds certificates|identifiers|devices|profiles list` print.
+/// Only two-space keys are kept; nested detail (certificate contents, device lists) is left out.
+pub fn parse_records(text: &str) -> Vec<Record> {
+    let mut out: Vec<Record> = Vec::new();
+    for line in strip_ansi(text).lines() {
+        if let Some(first) = line.strip_prefix("- ") {
+            if let Some((k, v)) = first.split_once(": ") {
+                out.push(Record { fields: vec![(k.trim().into(), v.trim().into())] });
+            }
+        } else if line.starts_with("  ") && !line.starts_with("   ") {
+            if let (Some(rec), Some((k, v))) = (out.last_mut(), line.trim().split_once(": ")) {
+                rec.fields.push((k.trim().into(), v.trim().into()));
+            }
+        }
+    }
+    out
+}
+
+/// `Name [status]: id` followed by `- Membership (platform)` lines, as `xtool ds teams list` prints.
+pub fn parse_teams(text: &str) -> Vec<Record> {
+    let mut out: Vec<Record> = Vec::new();
+    for line in strip_ansi(text).lines() {
+        if let Some(member) = line.strip_prefix("- ") {
+            if let Some(rec) = out.last_mut() {
+                match rec.fields.iter_mut().find(|(k, _)| k == "memberships") {
+                    Some((_, v)) => {
+                        v.push_str(", ");
+                        v.push_str(member.trim());
+                    }
+                    None => rec.fields.push(("memberships".into(), member.trim().into())),
+                }
+            }
+        } else if let Some((head, id)) = line.rsplit_once("]: ") {
+            if let Some((name, status)) = head.rsplit_once(" [") {
+                out.push(Record {
+                    fields: vec![("name".into(), name.trim().into()), ("status".into(), status.trim().into()), ("id".into(), id.trim().into())],
+                });
+            }
+        }
+    }
+    out
+}
+
+#[derive(Serialize, Debug, Clone)]
+pub struct Inventory {
+    pub kind: String,
+    pub records: Vec<Record>,
+    /// xtool's own text, shown when nothing could be read (usually "log in first").
+    pub raw: String,
+}
+
+pub fn inventory(launcher: &Launcher, root: &Path, kind: &str) -> Result<Inventory, String> {
+    let action = match kind {
+        "teams" | "certificates" | "identifiers" | "devices" | "profiles" => format!("ds-{kind}"),
+        _ => return Err("unknown inventory".into()),
+    };
+    let args = build_args(&action, &Params::default(), root)?;
+    let raw = strip_ansi(&capture(launcher, &args, root, Duration::from_secs(40))?);
+    let records = if kind == "teams" { parse_teams(&raw) } else { parse_records(&raw) };
+    Ok(Inventory { kind: kind.into(), records, raw: raw.trim().into() })
 }
 
 #[derive(Serialize, Debug, PartialEq, Clone)]
@@ -620,12 +707,64 @@ mod tests {
     }
 
     #[test]
+    fn apple_inventory_text_is_read_into_records() {
+        let certs = "- id: ABC123\n  name: Apple Development: Ana (X1)\n  type: DEVELOPMENT\n  expiry: 11/20/26, 9:00 AM\n  content:\n    common name: Ana\n- id: DEF\n  name: Second\n";
+        let recs = parse_records(certs);
+        assert_eq!(recs.len(), 2);
+        assert_eq!(recs[0].fields[0], ("id".to_string(), "ABC123".to_string()));
+        assert!(recs[0].fields.iter().any(|(k, v)| k == "expiry" && v.starts_with("11/20/26")));
+        assert!(!recs[0].fields.iter().any(|(k, _)| k == "common name"), "nested detail is dropped");
+        let teams = parse_teams("Ana Banks [active]: TEAM1234\n- Ana Banks (iOS)\n- Ana Banks (macOS)\n");
+        assert_eq!(teams.len(), 1);
+        assert_eq!(teams[0].fields[2].1, "TEAM1234");
+        assert_eq!(teams[0].fields[3], ("memberships".to_string(), "Ana Banks (iOS), Ana Banks (macOS)".to_string()));
+        assert!(parse_records("Error: not logged in").is_empty());
+    }
+
+    #[test]
+    fn launching_and_uninstalling_check_the_bundle_id() {
+        let root = root_with_package();
+        let ok = Params { udid: Some("00008110-AAAA".into()), bundle_id: Some("com.example.App-1".into()), ..Params::default() };
+        assert_eq!(build_args("uninstall", &ok, &root).unwrap(), ["uninstall", "com.example.App-1", "--udid", "00008110-AAAA"]);
+        assert_eq!(build_args("launch", &ok, &root).unwrap()[0], "launch");
+        for bad in ["--help", "a b", "", "x;rm", ".hidden"] {
+            let p = Params { udid: Some("00008110-AAAA".into()), bundle_id: Some(bad.into()), ..Params::default() };
+            assert!(build_args("uninstall", &p, &root).is_err(), "{bad}");
+        }
+        assert_eq!(build_args("ds-certificates", &Params::default(), &root).unwrap(), ["ds", "certificates", "list"]);
+    }
+
+    #[test]
     fn status_without_xtool_says_so_and_still_reports_the_project() {
         let root = root_with_package();
         let s = status(None, &root);
         assert!(!s.installed);
         assert!(s.project_ready);
         assert!(!s.auth.logged_in && !s.sdk.installed);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn status_and_inventory_read_a_fake_xtool() {
+        use std::os::unix::fs::PermissionsExt;
+        let root = root_with_package();
+        let fake = root.join("fake-xtool-status");
+        std::fs::write(
+            &fake,
+            "#!/bin/sh\ncase \"$1 $2 $3\" in\n  \"--version  \") echo 1.4.0;;\n  \"auth status \") printf 'Logged in.\\nana@example.com\\n';;\n  \"sdk status \") printf 'Darwin SDK is installed\\n  Version: 16.2\\n';;\n  \"ds certificates list\") printf -- '- id: C1\\n  name: Dev cert\\n  expiry: soon\\n';;\n  \"devices --no-wait \") printf 'Ana iPhone [USB]: 00008110-001A2B3C4D5E801E\\n';;\n  *) echo \"unexpected: $@\"; exit 2;;\nesac\n",
+        )
+        .unwrap();
+        std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let l = Launcher { program: fake.display().to_string(), prefix: vec![], via_wsl: false };
+        let s = status(Some(&l), &root);
+        assert!(s.installed && s.project_ready);
+        assert_eq!(s.version, "1.4.0");
+        assert!(s.auth.logged_in);
+        assert!(s.sdk.installed && s.sdk.version == "16.2");
+        let inv = inventory(&l, &root, "certificates").unwrap();
+        assert_eq!(inv.records.len(), 1);
+        assert_eq!(list_devices(&l, &root).unwrap()[0].name, "Ana iPhone");
+        assert!(inventory(&l, &root, "rm").is_err());
     }
 
     #[cfg(unix)]

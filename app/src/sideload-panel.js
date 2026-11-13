@@ -1,4 +1,4 @@
-// Sideload tab: the iLoader engine (isideload + idevice) in Rust.
+// iLoader tab: the iLoader engine (isideload + idevice) in Rust.
 // It has its own Apple sign-in, separate from the xtool one on the Account tab.
 import { listen, emit } from "@tauri-apps/api/event";
 
@@ -176,7 +176,7 @@ export function mountSideload({ invoke, makePanel, pickFile, notify }) {
   }
 
   panel.append(
-    el("div", { class: "xmissing", text: "This tab uses the iLoader engine and signs in to Apple on its own, apart from the Account tab. Sign-in goes through a third-party Anisette server that supplies device-ID data; your credentials only go to Apple. Use a secondary Apple ID if you can. Free accounts: 3 apps, 7-day certificates." }),
+    el("div", { class: "xmissing", text: "This tab is iLoader (SideStore, certificates, App IDs, pairing) and signs in to Apple on its own, apart from the Account tab. Sign-in goes through a third-party Anisette server that supplies device-ID data; your credentials only go to Apple. Use a secondary Apple ID if you can. Free accounts: 3 apps, 7-day certificates." }),
     el("div", { class: "xrow xtop" }, who, signOut),
     form, storageNote, prompt,
     el("div", { class: "xrow" }, el("strong", { class: "xnote", text: "Device" }), devSelect, button("↻", loadDevices), devNote),

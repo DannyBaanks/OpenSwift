@@ -211,3 +211,29 @@ class FramesTest(unittest.TestCase):
                 self.assertEqual(record["raster"], "builtin")
             finally:
                 os.chdir(cwd)
+
+
+class FallbackPngTest(unittest.TestCase):
+    def _png_size(self, data: bytes) -> tuple[int, int]:
+        import struct
+
+        return struct.unpack(">II", data[16:24])
+
+    def test_bare_frame_is_just_the_screen_and_landscape_turns_it(self) -> None:
+        from openswift.devices import get_device
+        from openswift.parse import parse_swiftui
+        from openswift.session import _write_preview_png
+
+        tree = parse_swiftui('var body: some View { Text("hi") }')
+        with tempfile.TemporaryDirectory() as tmp:
+            bare = Path(tmp) / "bare.png"
+            _write_preview_png(tree, bare, "iphone-12", "dark", "none", "portrait")
+            device = get_device("iphone-12")
+            self.assertEqual(self._png_size(bare.read_bytes()), (device.width, device.height))
+            side = Path(tmp) / "side.png"
+            _write_preview_png(tree, side, "iphone-15", "dark", "black", "landscape")
+            turned = get_device("iphone-15", "landscape")
+            self.assertEqual(
+                self._png_size(side.read_bytes()),
+                (turned.width + turned.bezel_side * 2, turned.height + turned.bezel_top + turned.bezel_bottom),
+            )

@@ -147,27 +147,29 @@ def _write_preview_png(
     SCREEN_W = device.width
     SCREEN_H = device.height
 
-    width = SCREEN_W + device.bezel_side * 2
-    height = SCREEN_H + device.bezel_top + device.bezel_bottom
-    screen_x = device.bezel_side
-    screen_y = device.bezel_top
+    # "none" is the bare screen, like the SVG: no case, so the image is just the screen.
+    bare = case["body"] == "none"
+    bezel_x, bezel_t, bezel_b = (0, 0, 0) if bare else (device.bezel_side, device.bezel_top, device.bezel_bottom)
+    width = SCREEN_W + bezel_x * 2
+    height = SCREEN_H + bezel_t + bezel_b
+    screen_x = bezel_x
+    screen_y = bezel_t
+    dx, dy = screen_x - device.bezel_side, screen_y - device.bezel_top
 
-    # A PNG has no transparency: "none" keeps the page color where the case would be.
-    page = (28, 28, 30)
-    body = page if case["body"] == "none" else _hex(case["body"])
-    rgb = bytearray(page) * (width * height)
-    fill(rgb, width, 4, 4, width - 8, height - 8, body)
+    rgb = bytearray((28, 28, 30)) * (width * height)
+    if not bare:
+        fill(rgb, width, 4, 4, width - 8, height - 8, _hex(case["body"]))
     fill(rgb, width, screen_x, screen_y, SCREEN_W, SCREEN_H, _hex(palette["screen"]))
 
+    _draw_notch_png(rgb, width, device, screen_x, screen_y, SCREEN_W, SCREEN_H, landscape)
     if not landscape:
-        _draw_notch_png(rgb, width, device, screen_x, screen_y, SCREEN_W)
         _stamp(rgb, width, screen_x + 16, screen_y + device.status_bar_height - 14, "9:41", _hex(palette["status"]))
 
     boxes = layout(tree, device_id, orientation)
     ink_default = _hex(palette["primary"])
     for box in boxes:
         node = box.node
-        x, y, w, h = int(box.x), int(box.y), int(box.w), int(box.h)
+        x, y, w, h = int(box.x + dx), int(box.y + dy), int(box.w), int(box.h)
         if node.background:
             back = _hex(node.background)
             if node.bg_opacity < 1:
@@ -201,30 +203,48 @@ def _write_preview_png(
             _stamp(rgb, width, x + 4, y + 4, node.kind, _hex(palette["secondary"]))
 
     _draw_home_indicator_png(rgb, width, device, screen_x, screen_y, SCREEN_W, SCREEN_H)
-    if device.idiom == "phone" and not landscape:
+    if device.idiom == "phone" and not landscape and not bare:
         _draw_side_buttons_png(rgb, width, device, screen_x, screen_y, SCREEN_W, SCREEN_H)
 
     write_png(path, width, height, rgb)
 
 
-def _draw_notch_png(rgb: bytearray, width: int, device, screen_x: int, screen_y: int, screen_w: int) -> None:
-    """Draw notch or Dynamic Island on PNG."""
+def _in_rounded(x: int, y: int, x0: int, y0: int, w: int, h: int, r: int) -> bool:
+    """Whether a pixel is inside a rounded rectangle."""
+    nx = min(max(x, x0 + r), x0 + w - 1 - r)
+    ny = min(max(y, y0 + r), y0 + h - 1 - r)
+    return (x - nx) ** 2 + (y - ny) ** 2 <= r * r
+
+
+def _draw_notch_png(
+    rgb: bytearray, width: int, device, screen_x: int, screen_y: int, screen_w: int,
+    screen_h: int = 0, landscape: bool = False,
+) -> None:
+    """Draw notch or Dynamic Island on PNG. On its side it sits on the left edge."""
     from openswift.devices import NotchType
-    
+
+    if landscape and device.notch_type != NotchType.NONE:
+        if device.notch_type == NotchType.DYNAMIC_ISLAND:
+            length, thick, inset, radius = 126, 36, 11, 18
+        else:
+            length = 194 if device.notch_type == NotchType.CLASSIC else 156
+            thick, inset, radius = 32, 0, 10
+        top = screen_y + (screen_h - length) // 2
+        left = screen_x + inset - (radius if not inset else 0)
+        for y in range(top, top + length):
+            for x in range(screen_x + inset, screen_x + inset + thick):
+                if _in_rounded(x, y, left, top, thick + (radius if not inset else 0), length, radius):
+                    fill(rgb, width, x, y, 1, 1, (10, 10, 10))
+        return
+
     if device.notch_type == NotchType.DYNAMIC_ISLAND:
         # Dynamic Island - pill shape
         island_w, island_h = 126, 36
         island_x = screen_x + (screen_w - island_w) // 2
         island_y = screen_y + 6
-        # Draw rounded rect approximation
         for y in range(island_y, island_y + island_h):
             for x in range(island_x, island_x + island_w):
-                # Simple rounded corners
-                dx = min(x - island_x, island_x + island_w - 1 - x)
-                dy = min(y - island_y, island_y + island_h - 1 - y)
-                if dx < 18 and dy < 18 and dx*dx + dy*dy < 18*18:
-                    continue
-                if x < width and y < len(rgb) // (width * 3):
+                if _in_rounded(x, y, island_x, island_y, island_w, island_h, 18):
                     fill(rgb, width, x, y, 1, 1, (10, 10, 10))
     elif device.notch_type in (NotchType.CLASSIC, NotchType.REDUCED):
         # Notch - trapezoid with rounded bottom

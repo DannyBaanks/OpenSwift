@@ -227,20 +227,15 @@ async function openFile(path) {
   drawFiles();
   log("console", "opened " + path);
 }
+async function post(route, body) {
+  const res = await fetch(route, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(body) });
+  return res.json();
+}
 async function run() {
-  if (viewSelect.value) {
-    const sheetRes = await fetch("/api/sheet", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ source: code.value, devices: viewSelect.value, appearance: appearanceSelect.value, frame: frameSelect.value, orientation: orientationSelect.value }) });
-    const sheetData = await sheetRes.json();
-    if (!sheetData.ok) { setStatus("could not draw: " + sheetData.error, true); return; }
-    screen.innerHTML = sheetData.svg;
-    lastSvg = sheetData.svg;
-    document.querySelector("#phone").style.width = "100%";
-    setStatus("drawn on " + sheetData.devices.length + " devices");
-    return;
-  }
-  document.querySelector("#phone").style.width = "";
-  const res = await fetch("/api/render", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ source: code.value, device: deviceSelect.value, appearance: appearanceSelect.value, frame: frameSelect.value, orientation: orientationSelect.value }) });
-  const data = await res.json();
+  const look = { appearance: appearanceSelect.value, frame: frameSelect.value, orientation: orientationSelect.value };
+  // The tree and the problems always come from the single-device render, so the
+  // panels stay current in compare mode too.
+  const data = await post("/api/render", { source: code.value, device: deviceSelect.value, ...look });
   if (!data.ok) {
     setBadge(1);
     setStatus("could not draw: " + data.error, true);
@@ -250,13 +245,25 @@ async function run() {
     log("output", "render failed: " + data.error);
     return;
   }
-  screen.innerHTML = data.svg;
-  lastSvg = data.svg;
   panes.debug = "Sketch tree (not a call stack)\n\n" + fmt(data.tree, 0);
   setBadge(data.problems.length);
-  setStatus("drawn " + new Date().toLocaleTimeString());
   panes.problems = data.problems.length ? data.problems.join("\n") : "No problems in the known views.";
-  panes.output = "rendered " + current + "\nprovider approximate-web";
+  const phone = document.querySelector("#phone");
+  if (viewSelect.value) {
+    const sheetData = await post("/api/sheet", { source: code.value, devices: viewSelect.value, ...look });
+    if (!sheetData.ok) { setStatus("could not draw: " + sheetData.error, true); return; }
+    screen.innerHTML = sheetData.svg;
+    lastSvg = sheetData.svg;
+    phone.style.width = "100%";
+    setStatus("drawn on " + sheetData.devices.length + " devices");
+    panes.output = "rendered " + current + " on " + sheetData.devices.join(", ") + "\nprovider approximate-web";
+  } else {
+    screen.innerHTML = data.svg;
+    lastSvg = data.svg;
+    phone.style.width = "";
+    setStatus("drawn " + new Date().toLocaleTimeString());
+    panes.output = "rendered " + current + "\nprovider approximate-web";
+  }
   showPane();
   log("console", "rendered " + (current || "buffer"));
 }
